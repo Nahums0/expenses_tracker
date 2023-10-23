@@ -1,0 +1,6 @@
+__pycache__/
+test.py 
+credentials.json
+.env
+app/google_searcher.py
+refactoring_withgpt.py
