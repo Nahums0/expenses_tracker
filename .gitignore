@@ -1,5 +1,7 @@
 __pycache__/
-test.py 
+.pytest_cache/
+.vscode/
+test.py
 credentials.json
 .env
 app/google_searcher.py
