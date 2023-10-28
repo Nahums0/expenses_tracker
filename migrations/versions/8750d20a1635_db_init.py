@@ -1,18 +1,18 @@
 """DB Init
 
-Revision ID: 802d5f1a1709
+Revision ID: 8750d20a1635
 Revises: 
-Create Date: 2023-10-21 15:35:50.479635
+Create Date: 2023-10-23 16:28:48.246969
 
 """
 from typing import Sequence, Union
 
 from alembic import op
 import sqlalchemy as sa
-from app.database.models import db
+
 
 # revision identifiers, used by Alembic.
-revision: str = '802d5f1a1709'
+revision: str = '8750d20a1635'
 down_revision: Union[str, None] = None
 branch_labels: Union[str, Sequence[str], None] = None
 depends_on: Union[str, Sequence[str], None] = None
@@ -24,6 +24,7 @@ def upgrade() -> None:
     sa.Column('email', sa.String(length=255), nullable=False),
     sa.Column('password', sa.LargeBinary(), nullable=True),
     sa.Column('shouldGetScrapped', sa.Boolean(), nullable=True),
+    sa.Column('lastTransactionsScanDate', sa.DateTime(), nullable=True),
     sa.PrimaryKeyConstraint('email')
     )
     op.create_table('appUserCredentials',
@@ -49,19 +50,21 @@ def upgrade() -> None:
     sa.PrimaryKeyConstraint('id')
     )
     op.create_table('transaction',
-    sa.Column('arn', sa.String(), nullable=False),
+    sa.Column('id', sa.String(), nullable=False),
+    sa.Column('arn', sa.String(length=255), nullable=False),
     sa.Column('userEmail', sa.String(length=255), nullable=True),
     sa.Column('categoryId', sa.Integer(), nullable=True),
     sa.Column('transactionAmount', sa.Float(), nullable=True),
-    sa.Column('paymentDate', sa.Date(), nullable=True),
-    sa.Column('purchaseDate', sa.Date(), nullable=True),
+    sa.Column('paymentDate', sa.DateTime(), nullable=True),
+    sa.Column('purchaseDate', sa.DateTime(), nullable=True),
     sa.Column('shortCardNumber', sa.String(length=4), nullable=True),
     sa.Column('merchantData', sa.JSON(), nullable=True),
     sa.Column('originalCurrency', sa.String(length=3), nullable=True),
     sa.Column('originalAmount', sa.Float(), nullable=True),
+    sa.Column('isRecurring', sa.Boolean(), nullable=True),
     sa.ForeignKeyConstraint(['categoryId'], ['category.id'], ),
     sa.ForeignKeyConstraint(['userEmail'], ['user.email'], ),
-    sa.PrimaryKeyConstraint('arn')
+    sa.PrimaryKeyConstraint('id')
     )
     op.create_table('userCategoryData',
     sa.Column('id', sa.Integer(), autoincrement=True, nullable=False),
@@ -78,30 +81,30 @@ def upgrade() -> None:
     op.create_table('userParsedCategory',
     sa.Column('id', sa.Integer(), nullable=False),
     sa.Column('chargingBusiness', sa.String(length=255), nullable=True),
-    sa.Column('ownerEmail', sa.String(length=255), nullable=True),
+    sa.Column('userEmail', sa.String(length=255), nullable=True),
     sa.Column('targetCategoryId', sa.Integer(), nullable=True),
-    sa.ForeignKeyConstraint(['ownerEmail'], ['user.email'], ),
     sa.ForeignKeyConstraint(['targetCategoryId'], ['category.id'], ),
+    sa.ForeignKeyConstraint(['userEmail'], ['user.email'], ),
     sa.PrimaryKeyConstraint('id')
     )
     op.create_table('categoryMonthlyAveragesHistory',
     sa.Column('id', sa.Integer(), autoincrement=True, nullable=False),
     sa.Column('categoryId', sa.Integer(), nullable=True),
-    sa.Column('date', sa.Date(), nullable=True),
-    sa.Column('monthlyAverage', sa.Integer(), nullable=True),
+    sa.Column('monthlyAverageDate', sa.Date(), nullable=True),
+    sa.Column('monthlyAverageAmount', sa.Integer(), nullable=True),
     sa.ForeignKeyConstraint(['categoryId'], ['userCategoryData.id'], ),
     sa.PrimaryKeyConstraint('id')
     )
     op.create_table('recurringTransactions',
     sa.Column('id', sa.Integer(), nullable=False),
-    sa.Column('transaction_arn', sa.String(), nullable=False),
-    sa.Column('frequencyInMinutes', sa.Integer(), nullable=True),
-    sa.Column('startDate', sa.Date(), nullable=True),
-    sa.Column('scannedAt', sa.Date(), nullable=True),
-    sa.ForeignKeyConstraint(['transaction_arn'], ['transaction.arn'], ),
+    sa.Column('transaction_id', sa.String(), nullable=False),
+    sa.Column('frequency_value', sa.Integer(), nullable=True),
+    sa.Column('frequency_unit', sa.String(length=50), nullable=True),
+    sa.Column('startDate', sa.DateTime(), nullable=True),
+    sa.Column('scannedAt', sa.DateTime(), nullable=True),
+    sa.ForeignKeyConstraint(['transaction_id'], ['transaction.id'], ),
     sa.PrimaryKeyConstraint('id')
     )
-    db.session.commit()
     # ### end Alembic commands ###
 
 
@@ -116,5 +119,4 @@ def downgrade() -> None:
     op.drop_table('category')
     op.drop_table('appUserCredentials')
     op.drop_table('user')
-    db.session.commit()
     # ### end Alembic commands ###

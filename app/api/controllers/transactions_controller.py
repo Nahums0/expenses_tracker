@@ -1,9 +1,6 @@
-import json
-import pickle
-from flask import Flask, Response, jsonify, make_response, request
 from flask import Blueprint
 from flask_jwt_extended import jwt_required
-from app.transactions_fetcher import fetch_transactions
+from app.transaction_fetchers.max_fetcher import fetch_transactions_from_max
 
 transactions_bp = Blueprint("transactions", __name__, url_prefix="/api")
 APP_NAME = "Transactions Controller"
@@ -30,20 +27,7 @@ def get_transactions():
 def update_transaction():
     pass #TODO: implement -> This is an option to manually update a transaction
 
-
-
-# @transactions_bp.route("/get", methods=['GET'])
-# def get():
-#     # with open("credentials.json", "r") as file:
-#     #     user_credentails = json.loads(file.read())
-
-#     # # res = fetch_transactions.apply_async(user_credentails, queue='transactions_fetch', countdown=0)
-#     # res = fetch_transactions(user_credentails=user_credentails)
-#     # transactions = parse_transactions_html(res)
-#     # serialized_data = pickle.dumps(transactions)
-    
-#     with open("pickle", "rb") as file:
-#         transactions = pickle.load(file)
-#     return Response(json.dumps(transactions, ensure_ascii=False), content_type='application/json; charset=utf-8')
-#     return make_response(json.dumps(transactions, ensure_ascii=False), 200)
-#     return json.dumps(transactions, ensure_ascii=False)
+@transactions_bp.route("/force_transactions_fetch", methods=["POST"])
+@jwt_required()
+def force_transactions_fetch():
+    pass #TODO: implement -> This is an option to force a transaction fetch for a user

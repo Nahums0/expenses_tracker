@@ -22,6 +22,7 @@ class User(db.Model):
     email = Column(String(255), primary_key=True)
     password = Column(LargeBinary)
     shouldGetScrapped = Column(Boolean, default=True)
+    lastTransactionsScanDate = Column(DateTime, default=None)
 
     appUserCredentials = relationship(
         "AppUserCredentials", back_populates="user", uselist=False
@@ -73,7 +74,8 @@ class CategoryMonthlyAveragesHistory(db.Model):
 class Transaction(db.Model):
     __tablename__ = "transaction"
 
-    arn = Column(String, primary_key=True, nullable=False)
+    id = Column(String, primary_key=True, nullable=False)
+    arn = Column(String(255), nullable=False)
     userEmail = Column(String(255), ForeignKey("user.email"))
     categoryId = Column(Integer, ForeignKey("category.id"))
 
@@ -94,7 +96,7 @@ class Transaction(db.Model):
 class UserParsedCategory(db.Model):
     __tablename__ = "userParsedCategory"
 
-    id = Column(Integer, primary_key=True)
+    id = Column(Integer, primary_key=True, autoincrement=True)
     chargingBusiness = Column(String(255))
     userEmail = Column(String(255), ForeignKey("user.email"), nullable=True)
     targetCategoryId = Column(Integer, ForeignKey("category.id"))
@@ -104,7 +106,7 @@ class RecurringTransactions(db.Model):
     __tablename__ = "recurringTransactions"
 
     id = Column(Integer, primary_key=True)
-    transaction_arn = Column(String, ForeignKey("transaction.arn"), nullable=False)
+    transaction_id = Column(String, ForeignKey("transaction.id"), nullable=False)
     transaction = relationship("Transaction", back_populates="recurring_transaction")
 
     frequency_value = Column(Integer)
@@ -112,7 +114,7 @@ class RecurringTransactions(db.Model):
 
     startDate = Column(DateTime)
     scannedAt = Column(DateTime)
-    
+
 
 class UserWarnings(db.Model):
     __tablename__ = "userWarnings"

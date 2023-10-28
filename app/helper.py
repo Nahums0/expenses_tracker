@@ -1,56 +1,65 @@
 import calendar
-from datetime import datetime
+import logging
+import os
 import json
 import uuid
-from flask import jsonify, make_response
-from flask_wtf import FlaskForm
-from wtforms import StringField, PasswordField
-from wtforms.validators import DataRequired, Email, Length
+from datetime import datetime
+
 import bcrypt
-from app.database.models import Category, CategoryMonthlyAveragesHistory, User, Transaction, UserCategoryData, db
-from sqlalchemy.orm import joinedload
-from sqlalchemy.orm.attributes import InstrumentedAttribute
-import os
 import openai
 import requests
+from flask import jsonify, make_response
+from flask_wtf import FlaskForm
+from sqlalchemy.orm import joinedload
+from sqlalchemy.orm.attributes import InstrumentedAttribute
+from wtforms import StringField, PasswordField
+from wtforms.validators import DataRequired, Email, Length
 
-PROMPT_TEMPLATE = """Choose the best category for each of the given transactions:
-{categories_string}.
-Transactions:
-{transactions_string}
-* DO NOT PROVIDE ANY TEXT OTHER THAN THE EXPECTED OUTPUT
-* ONLY PICK CATEGORIES FROM THE PROVIDEN LIST
-Expected Output:
-"Category for #{{index_number}}: [chosen_category_1]"
-"Category for #{{index_number}}: [chosen_category_2]"
-END OF OUTPUT"""
+from app.database.models import User,Transaction, UserCategoryData, db
+from config.logger import LOG_FORMAT, LOG_LEVEL
 
+# Constants
+MIN_PASSWORD_LENGTH = 8
+MIN_APP_CREDS_LENGTH = 4
+OPENAI_API_URL = 'https://api.openai.com/v1/chat/completions'
+OPENAI_API_KEY = os.environ.get("OPENAI_API_KEY")
+PROMPT_TEMPLATE = (
+    "Choose the best category for each of the given transactions from the give categories list.\n"
+    "- DO NOT MAKE UP CATEGORIES.\n"
+    "- DO NOT PROVIDE ANY TEXT OTHER THAN THE EXPECTED OUTPUT.\n"
+    "- IF UNCERTAIN, USE THE 'General' CATEGORY.\n"
+    "Categories list:\n"
+    "{categories_string}.\n"
+    "Transactions:\n"
+    "{transactions_string}\n"
+    "Expected Output:\n"
+    "\"Category for #{{index_number}}: [chosen_category_1]\"\n"
+    "\"Category for #{{index_number}}: [chosen_category_2]\"\n"
+    "END OF OUTPUT"
+)
+
+# Helper Functions and Classes
 def get_prompt_template(categories_string, transactions_string):
     return PROMPT_TEMPLATE.format(categories_string=categories_string, transactions_string=transactions_string)
 
+def setup_werkzeug_logger():
+    #TODO: This either gets overriden by other loggers or doesn't change werkzeug at all 
+    werkzeug_logger = logging.getLogger('werkzeug')
+    werkzeug_logger.setLevel(LOG_LEVEL)
+    for handler in werkzeug_logger.handlers:
+        handler.setFormatter(logging.Formatter(LOG_FORMAT))
 
-def create_response(message, status_code, data=None, json=True):
+def create_response(message, status_code, data=None):
     response_data = {"message": message, "status_code": status_code}
     if data:
         response_data['data'] = data
-
-    if json:
-        response = make_response(jsonify(response_data), status_code)
-    else:
-        response = make_response(jsonify(response_data), status_code)
-
-    return response
-
+    return make_response(jsonify(response_data), status_code)
 
 class RegistrationForm(FlaskForm):
     email = StringField("Email", validators=[DataRequired(), Email()])
-    password = PasswordField("Password", validators=[DataRequired(), Length(min=8)])
-    appUsername = StringField(
-        "App Username", validators=[DataRequired(), Length(min=4)]
-    )
-    appPassword = StringField(
-        "App Password", validators=[DataRequired(), Length(min=4)]
-    )
+    password = PasswordField("Password", validators=[DataRequired(), Length(min=MIN_PASSWORD_LENGTH)])
+    appUsername = StringField("App Username", validators=[DataRequired(), Length(min=MIN_APP_CREDS_LENGTH)])
+    appPassword = StringField("App Password", validators=[DataRequired(), Length(min=MIN_APP_CREDS_LENGTH)])
     appIdentityDocumentNumber = StringField(
         "App Identity Document Number",
         validators=[
@@ -62,17 +71,14 @@ class RegistrationForm(FlaskForm):
 
 class UserLoginForm(FlaskForm):
     email = StringField("Email", validators=[DataRequired(), Email()])
-    password = PasswordField("Password", validators=[DataRequired(), Length(min=8)])
-
+    password = PasswordField("Password", validators=[DataRequired(), Length(min=MIN_PASSWORD_LENGTH)])
 
 def hash_password(password):
     salt = bcrypt.gensalt()
-    hashed_password = bcrypt.hashpw(password.encode('utf-8'), salt)
-    return hashed_password
+    return bcrypt.hashpw(password.encode('utf-8'), salt)
 
 def verify_password(input_password, hashed_password):
-    input_password_bytes = input_password.encode('utf-8')
-    return bcrypt.checkpw(input_password_bytes, hashed_password)
+    return bcrypt.checkpw(input_password.encode('utf-8'), hashed_password)
 
 def calculate_next_recurrence_date(current_date, frequency_value, frequency_unit, start_date):
     if frequency_unit == "days":
@@ -85,20 +91,17 @@ def calculate_next_recurrence_date(current_date, frequency_value, frequency_unit
         day = min(start_date.day, calendar.monthrange(year, month)[1])
     return datetime(year, month, day)
 
-
 def fetch_users_for_scraping():
-    """Fetch all users marked for scraping from the database."""
     return User.query.options(joinedload(User.appUserCredentials)).filter_by(shouldGetScrapped=True).all()
 
-
 def transform_transactions_for_user(user, transactions):
-    """Transform raw transaction data to a list of Transaction objects."""
     transactions_list = []
     for transaction in transactions:
         transformed_transaction = Transaction(
+            id=user.email + "_" + transaction["arn"],
             arn=transaction["arn"],
             userEmail=user.email,
-            categoryId=0,  # Default categoryId
+            categoryId=0,
             transactionAmount=transaction['transaction_amount'],
             paymentDate=transaction['payment_date'],
             purchaseDate=transaction['purchase_date'],
@@ -109,7 +112,6 @@ def transform_transactions_for_user(user, transactions):
         )
         transactions_list.append(transformed_transaction)
     return transactions_list
-
 
 def process_recurring_transactions(recurring_transactions):
     """Handle recurring transactions and return a list of transactions to be added."""
@@ -128,6 +130,7 @@ def process_recurring_transactions(recurring_transactions):
             column_data = {key: getattr(transaction, key) for key in dir(transaction)
                            if isinstance(getattr(Transaction, key, None), InstrumentedAttribute)}
 
+            column_data['id'] = str(uuid.uuid4())
             column_data['arn'] = str(uuid.uuid4())
             column_data['paymentDate'] = next_scan_date
             column_data['purchaseDate'] = next_scan_date
@@ -142,39 +145,27 @@ def process_recurring_transactions(recurring_transactions):
 
     return transactions_to_add
 
-
-def initiate_category_data(category_id, user_email, db):
-    # Create UserCategoryData for the user
+def initiate_category_data(category_id, user_email):
     db.session.add(UserCategoryData(
-        categoryId=category_id, 
+        categoryId=category_id,
         userEmail=user_email,
         monthlyBudget=-1,
         monthlySpending=0,
         monthlyAverage=0,
-        ))
-
+    ))
 
 def query_chatgpt(prompt):
-    OPENAI_API_KEY = os.environ.get("OPENAI_API_KEY")
-
-    url = 'https://api.openai.com/v1/chat/completions'
-
     headers = {
         'Content-Type': 'application/json',
         'Authorization': f'Bearer {OPENAI_API_KEY}'
     }
-
     data = {
         "model": "gpt-3.5-turbo",
         "messages": [{"role": "user", "content": prompt}],
-        "temperature": 0.3
+        "temperature": 0.1,
     }
-    response = requests.post(url, headers=headers, data=json.dumps(data))
-
-    # Check if the request was successful
+    response = requests.post(OPENAI_API_URL, headers=headers, data=json.dumps(data))
     if response.status_code == 200:
         return response.json()["choices"][0]["message"]["content"]
     else:
         return f"Error {response.status_code}: {response.text}"
-
-

@@ -50,7 +50,7 @@ The frontend development will use React in the future. Details will be updated a
 
 **Setup**:
 1. Clone the repository.
-2. Rename the `empty.env` to `.env` and populate the environment variables.
+2. Rename the `_.env` to `.env` and populate the environment variables.
 3. Launch the application.
 
 <!-- CONTRIBUTING -->
