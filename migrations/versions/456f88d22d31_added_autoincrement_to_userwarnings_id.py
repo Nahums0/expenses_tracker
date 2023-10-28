@@ -1,8 +1,8 @@
-"""Added auto-increment to UserParsedCategory id field
+"""Added autoincrement to UserWarnings id
 
-Revision ID: 36b205eb1713
-Revises: 8750d20a1635
-Create Date: 2023-10-28 02:40:12.857741
+Revision ID: 456f88d22d31
+Revises: 1bbb11937a66
+Create Date: 2023-10-28 17:37:07.369013
 
 """
 from typing import Sequence, Union
@@ -12,8 +12,8 @@ import sqlalchemy as sa
 
 
 # revision identifiers, used by Alembic.
-revision: str = '36b205eb1713'
-down_revision: Union[str, None] = '8750d20a1635'
+revision: str = '456f88d22d31'
+down_revision: Union[str, None] = '1bbb11937a66'
 branch_labels: Union[str, Sequence[str], None] = None
 depends_on: Union[str, Sequence[str], None] = None
 

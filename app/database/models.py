@@ -10,8 +10,10 @@ from sqlalchemy import (
     Boolean,
     Date,
     ForeignKey,
+    Enum
 )
 from sqlalchemy.orm import relationship
+import enum
 
 db = SQLAlchemy()
 
@@ -87,7 +89,7 @@ class Transaction(db.Model):
     originalCurrency = Column(String(3))
     originalAmount = Column(Float)
     isRecurring = Column(Boolean, default=False)
-    
+
 
     user = relationship("User")
     recurring_transaction = relationship("RecurringTransactions", back_populates="transaction", uselist=False)
@@ -119,6 +121,6 @@ class RecurringTransactions(db.Model):
 class UserWarnings(db.Model):
     __tablename__ = "userWarnings"
 
-    id = Column(Integer, primary_key=True)
-    userEmail = Column(String(255), ForeignKey("user.email"), nullable=True)
-    failedToScrape = Column(Boolean, default=False)
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    userEmail = Column(String(255), ForeignKey("user.email"), nullable=False)
+    failedLoginCount = Column(Integer, nullable=False, default=0)

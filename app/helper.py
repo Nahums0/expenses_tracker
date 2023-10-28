@@ -15,7 +15,8 @@ from sqlalchemy.orm.attributes import InstrumentedAttribute
 from wtforms import StringField, PasswordField
 from wtforms.validators import DataRequired, Email, Length
 
-from app.database.models import User,Transaction, UserCategoryData, db
+from app.database.models import User,Transaction, UserCategoryData, UserWarnings, db
+from config.app import STOP_AT_FAILED_LOGIN_THRESHOLD
 from config.logger import LOG_FORMAT, LOG_LEVEL
 
 # Constants
@@ -91,8 +92,29 @@ def calculate_next_recurrence_date(current_date, frequency_value, frequency_unit
         day = min(start_date.day, calendar.monthrange(year, month)[1])
     return datetime(year, month, day)
 
+
+# Query users who have been flagged for scraping and preload their associated credentials.
 def fetch_users_for_scraping():
-    return User.query.options(joinedload(User.appUserCredentials)).filter_by(shouldGetScrapped=True).all()
+    users = User.query.options(joinedload(User.appUserCredentials)).filter_by(shouldGetScrapped=True).all()
+    skipped_users = []
+
+    index = 0
+    while index < len(users):
+        user = users[index]
+        user_warnings = UserWarnings.query.filter(UserWarnings.userEmail == user.email).first()
+
+        # Check if there are any warnings for the user.
+        if user_warnings is not None:
+            # If the failed login count for the user exceeds the defined threshold,
+            # log it and remove the user from the list.
+
+            if user_warnings.failedLoginCount >= STOP_AT_FAILED_LOGIN_THRESHOLD:
+                skipped_users.append(user.email)
+                users.pop(index)
+                continue
+        index += 1
+
+    return users, skipped_users
 
 def transform_transactions_for_user(user, transactions):
     transactions_list = []
@@ -169,3 +191,18 @@ def query_chatgpt(prompt):
         return response.json()["choices"][0]["message"]["content"]
     else:
         return f"Error {response.status_code}: {response.text}"
+
+
+def add_failed_login_user_warning(user_email):
+    user_warning = UserWarnings.query.filter(UserWarnings.userEmail == user_email).first()
+
+    if user_warning is None:
+        user_warning = UserWarnings(
+            userEmail=user_email,
+            failedLoginCount=1
+        )
+        db.session.add(user_warning)
+    else:
+        user_warning.failedLoginCount += 1
+
+    db.session.commit()

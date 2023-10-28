@@ -18,7 +18,7 @@ scheduled_jobs = [
     {
         "name": "Transactions Categorizer",
         "func": categorize_all_transactions,
-        "schedule_args": {"trigger": "interval", "minutes": 1},
+        "schedule_args": {"trigger": "interval", "hours": 1},
         "immediate_run": True,
     }
 ]

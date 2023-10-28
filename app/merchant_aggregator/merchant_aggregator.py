@@ -16,7 +16,7 @@ import os
 APP_NAME = "Merchant Aggregator"
 
 
-def _categorize_chunk(chunk, user_categories_dict, queue):
+def _categorize_chunk(chunk, user_categories_dict, user_email, queue):
     """Categorizes a chunk of transactions using ChatGPT"""
 
     log(APP_NAME, "DEBUG", f"Categorizing chunk of size: {len(chunk)} (PID: {os.getpid()})")
@@ -51,21 +51,22 @@ def _categorize_chunk(chunk, user_categories_dict, queue):
                 # Update transaction category
                 chunk[index].categoryId = category_id
 
-                # Update cached categories if it's not custom for user
-                if not custom_category:
-                    parsed_categories.append(UserParsedCategory(
-                        chargingBusiness=chunk[index].merchantData["name"],
-                        targetCategoryId=category_id,
-                        userEmail=None
-                    ))
+                # Update cached categories
+                parsed_categories.append(UserParsedCategory(
+                    chargingBusiness=chunk[index].merchantData["name"],
+                    targetCategoryId=category_id,
+                    userEmail=user_email if custom_category else None
+                ))
             else:
                 log(APP_NAME, "WARNING", f"Generated unrecognized category: '{category_name}' for transaction: {chunk[index].merchantData['name']}")
     queue.put((chunk, parsed_categories))
 
 
-def _process_chunk(chunks, user_categories, timeout):
+def _process_chunk(chunks, user_categories, processing_data):
     """Processes a set of transaction chunks in parallel while verifying each process's timeout."""
 
+    timeout = processing_data["timeout"]
+    user_email = processing_data["user_email"]
     processes = []
     process_results = [None] * len(chunks)
 
@@ -73,7 +74,7 @@ def _process_chunk(chunks, user_categories, timeout):
 
     for index, chunk in enumerate(chunks):
         q = Queue()
-        p = Process(target=_categorize_chunk, args=(chunk, user_categories, q))
+        p = Process(target=_categorize_chunk, args=(chunk, user_categories, user_email, q))
         p.start()
         processes.append({"process": p, "queue": q, "index": index, "size": len(chunk)})
 
@@ -105,8 +106,11 @@ def _process_chunk(chunks, user_categories, timeout):
     return process_results
 
 
-def process_data_in_chunks(transactions, user_categories, timeout, chunk_size, parallel_count):
+def process_data_in_chunks(transactions, user_categories, processing_data):
     """Splits transactions into chunks and processes them in parallel batches"""
+
+    chunk_size = processing_data["chunk_size"]
+    parallel_count = processing_data["parallel_count"]
 
     chunks = _split_into_chunks(transactions, chunk_size)
     results = {"transactions":[], "user_parsed_categories":[]}
@@ -120,7 +124,7 @@ def process_data_in_chunks(transactions, user_categories, timeout, chunk_size, p
                 batch.append(chunks[current_chunk_index])
                 current_chunk_index += 1
 
-        batch_results = _process_chunk(batch, user_categories, timeout)
+        batch_results = _process_chunk(batch, user_categories, processing_data)
 
         for chunk_result in batch_results:
             if chunk_result is None:
@@ -161,13 +165,16 @@ def categorize_for_all_users(user_transactions_dict):
 
             log(APP_NAME, "DEBUG", f"Found {len(cached_transactions)} transactions with cached merchants")
 
-            timeout = 60
-            chunk_size = 8
-            parallel_count = 20
+            processing_data = {
+                "timeout": 60,
+                "chunk_size": 8,
+                "parallel_count": 20,
+                "user_email": email
+            }
 
-            log(APP_NAME, "DEBUG", f"Processing data in chunks. Unchached transactions: {len(transactions)}, timeout: {timeout}, chunk size: {chunk_size}, parallel count: {parallel_count}")
+            log(APP_NAME, "DEBUG", f"Processing data in chunks. Unchached transactions: {len(transactions)}, processing_data: {processing_data}")
 
-            results = process_data_in_chunks(transactions, user_categories, timeout, chunk_size, parallel_count)
+            results = process_data_in_chunks(transactions, user_categories, processing_data)
 
             processed_transactions = results["transactions"]
             processed_transactions.extend(cached_transactions)

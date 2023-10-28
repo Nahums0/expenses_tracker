@@ -1,8 +1,6 @@
-from collections import defaultdict
-from app.database.models import CategoryMonthlyAveragesHistory, Transaction, User, db
+from app.database.models import Transaction, db
 from app.logger import log
 from app.merchant_aggregator.merchant_aggregator import categorize_for_all_users
-from sqlalchemy import case
 
 APP_NAME = "Transactions Categorizer"
 
