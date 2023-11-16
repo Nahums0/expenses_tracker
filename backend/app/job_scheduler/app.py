@@ -33,6 +33,7 @@ class SchedulerInstance:
             # Log job scheduling completion
             log(APP_NAME, "DEBUG", f"Job scheduled successfully: {job_config['name']}")
 
+
 def start_scheduler(app):
     """Initiate and start the background scheduler."""
     

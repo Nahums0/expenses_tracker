@@ -24,7 +24,7 @@ def set_merchant():
         # Extract and validate data
         merchant_name, category_id = _extract_merchant_data(request.get_json())
         if not merchant_name or not category_id:
-            log(APP_NAME, "ERROR", f"Merchant set failed for user: {email}, invalid arguments: {data}")
+            log(APP_NAME, "ERROR", f"Merchant set failed for user: {email}, invalid arguments: {merchant_name, category_id}")
             return create_response("Invalid arguments", 400)
 
         # Check category validity

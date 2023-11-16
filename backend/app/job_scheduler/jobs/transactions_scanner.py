@@ -1,28 +1,42 @@
 import datetime
 from app.database.models import Transaction, db
-from app.helper import add_failed_login_user_warning, fetch_users_for_scraping, process_recurring_transactions, transform_transactions_for_user
+from app.helper import (
+    add_failed_login_user_warning,
+    fetch_users_for_scraping,
+    process_recurring_transactions,
+    transform_transactions_for_user,
+)
 from app.logger import log
-from app.transaction_fetchers.max_fetcher import fetch_transactions_from_max
+from app.credit_card_adapters.max_fetcher import fetch_transactions_from_max
 from config.app import DEEP_TRANSACTIONS_SCAN_DEPTH_IN_DAYS
 
 APP_NAME = "Transactions Scanner"
+
 
 def _fetch_user_transactions(user, start_date, end_date):
     """Fetch transactions for a user within a given date range."""
 
     try:
-        log(APP_NAME, "DEBUG", f"Fetching transactions for user {user.email}. start_date: {start_date.date()}, end_date: {end_date.date()}")
+        log(
+            APP_NAME,
+            "DEBUG",
+            f"Fetching transactions for user {user.email}. start_date: {start_date.date()}, end_date: {end_date.date()}",
+        )
         transactions = fetch_transactions_from_max(
             user_credentials={
                 "username": user.appUserCredentials.username,
                 "password": user.appUserCredentials.password,
-                "id": user.appUserCredentials.identityDocumentNumber
+                "id": user.appUserCredentials.identityDocumentNumber,
             },
             user_email=user.email,
             start_date=start_date,
             end_date=end_date,
         )
-        log(APP_NAME, "DEBUG", f"Successfully fetched transactions for user {user.email}, received {len(transactions)} transactions")
+        log(
+            APP_NAME,
+            "DEBUG",
+            f"Successfully fetched transactions for user {user.email}, received {len(transactions)} transactions",
+        )
         return transactions
     except Exception as e:
         log(APP_NAME, "ERROR", f"Failed to fetch transactions for user {user.email}. Error: {str(e)}")
@@ -39,7 +53,11 @@ def _calculate_scan_depth(user):
     """Calculate the depth of transactions scan for a user."""
 
     last_scan_date = user.lastTransactionsScanDate
-    return DEEP_TRANSACTIONS_SCAN_DEPTH_IN_DAYS if last_scan_date is None else (datetime.datetime.now() - last_scan_date).days + 1
+    return (
+        DEEP_TRANSACTIONS_SCAN_DEPTH_IN_DAYS
+        if last_scan_date is None
+        else (datetime.datetime.now() - last_scan_date).days + 1
+    )
 
 
 def scan_users_transactions(scheduler):
@@ -59,7 +77,12 @@ def scan_users_transactions(scheduler):
             transactions_to_add = {}
             for user in users_to_scan:
                 scan_depth = _calculate_scan_depth(user)
-                user_transactions = _fetch_user_transactions(user, datetime.datetime.now() - datetime.timedelta(days=scan_depth), datetime.datetime.now())
+                user_transactions = _fetch_user_transactions(
+                    user=user,
+                    start_date=datetime.datetime.now() - datetime.timedelta(days=scan_depth),
+                    end_date=datetime.datetime.now(),
+                )
+
                 if user_transactions is None:
                     add_failed_login_user_warning(user.email)
                 else:
@@ -78,7 +101,11 @@ def scan_users_transactions(scheduler):
                     existing_user_transactions = _get_existing_user_transactions(email)
                     existing_user_transactions = {transaction.id: transaction for transaction in existing_user_transactions}
 
-                    new_user_transactions = [transaction for transaction in transactions if f"{email}_{transaction.arn}" not in existing_user_transactions]
+                    new_user_transactions = [
+                        transaction
+                        for transaction in transactions
+                        if f"{email}_{transaction.arn}" not in existing_user_transactions
+                    ]
                     new_transactions[email] = new_user_transactions
 
                 try:

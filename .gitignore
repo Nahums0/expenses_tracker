@@ -1,9 +1,36 @@
-__pycache__/
+# IDE/editor configurations
+.vscode
+.idea
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.sw?
+
+# Python-specific files
+**__pycache__
 .pytest_cache/
-.vscode/
 test.py
-credentials.json
 .env
-app/google_searcher.py
-refactoring_withgpt.py
+backend/app/google_searcher.py
+backend/refactoring_withgpt.py
+backend/manage.py
+
+# Frontend specific
+frontend/node_modules
+frontend/dist
+frontend/dist-ssr
+frontend/*.local
+
+# OS generated files
 **.DS_Store
+
+# Log files
+frontend/logs
+*.log
+frontend/npm-debug.log*
+frontend/yarn-debug.log*
+frontend/yarn-error.log*
+frontend/pnpm-debug.log*
+frontend/lerna-debug.log*
+

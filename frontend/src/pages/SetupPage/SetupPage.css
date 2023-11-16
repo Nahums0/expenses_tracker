@@ -1,0 +1,9 @@
+input[type="range"]::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 25px;
+  height: 25px;
+  background: #0D4249;
+  cursor: pointer;
+  border-radius: 50%;
+}

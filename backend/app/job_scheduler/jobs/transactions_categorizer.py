@@ -1,8 +1,10 @@
+from sqlalchemy import or_
 from app.database.models import Transaction, db
 from app.logger import log
 from app.merchant_aggregator.merchant_aggregator import categorize_for_all_users
 
 APP_NAME = "Transactions Categorizer"
+
 
 def categorize_all_transactions(scheduler):
     """Categorizes all transactions that have not been categorized yet."""
@@ -11,7 +13,12 @@ def categorize_all_transactions(scheduler):
     try:
         with scheduler.flask_app.app_context():
             # Query the database
-            unparsed_transactions = Transaction.query.filter(Transaction.categoryId == -1).all()
+            unparsed_transactions = Transaction.query.filter(
+                or_(
+                    Transaction.categoryId == -1,
+                    Transaction.categoryId == None,
+                )
+            ).all()
             unparsed_transactions_dict = {}
 
             if len(unparsed_transactions) == 0:
@@ -25,7 +32,11 @@ def categorize_all_transactions(scheduler):
                 unparsed_transactions_dict[transaction.userEmail].append(transaction)
 
             # Categorize unparsed transactions
-            log(APP_NAME, "INFO", f"Categorizing transactions for {len(unparsed_transactions_dict)} unqiue users, total transactions: {len(unparsed_transactions)}")
+            log(
+                APP_NAME,
+                "INFO",
+                f"Categorizing transactions for {len(unparsed_transactions_dict)} unqiue users, total transactions: {len(unparsed_transactions)}",
+            )
             updated_transactions, user_parsed_categories = categorize_for_all_users(unparsed_transactions_dict)
 
             # Update db with new category values

@@ -1,4 +1,3 @@
-import json
 import logging
 from config import logger as config_logger
 

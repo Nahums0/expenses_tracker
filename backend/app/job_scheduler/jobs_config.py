@@ -6,7 +6,7 @@ scheduled_jobs = [
     {
         "name": "Transactions Scanner",
         "func": scan_users_transactions,
-        "schedule_args": {"trigger": "interval", "seconds": 30},
+        "schedule_args": {"trigger": "interval", "minutes": 30},
         "immediate_run": True,
     },
     {
