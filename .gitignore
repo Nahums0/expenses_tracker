@@ -23,7 +23,7 @@ frontend/dist-ssr
 frontend/*.local
 
 # OS generated files
-**.DS_Store
+**/.DS_Store
 
 # Log files
 frontend/logs
@@ -34,3 +34,4 @@ frontend/yarn-error.log*
 frontend/pnpm-debug.log*
 frontend/lerna-debug.log*
 
+.DS_Store

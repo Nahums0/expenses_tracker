@@ -1,7 +1,7 @@
 import { Navigate, useLocation } from "react-router-dom";
 import useStore from "@/store/store";
 
-function RequireAuth(Component, redirectSetup=true) {
+function RequireAuth(Component, redirectSetup=true, redirectPendingTransactions=true) {
   return (props) => {
     const location = useLocation();
     var {user} = useStore()
@@ -16,6 +16,11 @@ function RequireAuth(Component, redirectSetup=true) {
 
     if (redirectSetup && initialSetupDone != true){
       return <Navigate to="/setup" state={{ from: location }} replace />;
+    }
+
+    const firstTransactionFetched = user.lastTransactionsScanDate
+    if (redirectPendingTransactions && firstTransactionFetched == null){
+      return <Navigate to="/pending-transactions" state={{ from: location }} replace />;
     }
 
     // If the user is authenticated, render the passed component

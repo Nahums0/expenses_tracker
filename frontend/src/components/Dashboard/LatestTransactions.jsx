@@ -1,7 +1,7 @@
 import Loading from "@/components/Loading/Loading";
 import Card from "./Card";
 import useStore from "@/store/store";
-import react, { useEffect } from "react";
+import React, { useEffect } from "react";
 
 const LatestTransactions = () => {
   const { transactions, fetchAndSetTransactions } = useStore();
@@ -15,7 +15,7 @@ const LatestTransactions = () => {
     fetchAndSetTransactions();
   }, []);
 
-  if (transactions.transactions == null || transactions.transactions[0] == null) {
+  if (transactions == null || transactions.transactions == null || transactions.transactions[0] == null) {
     return (
       <Card className="p-4 h-full flex flex-col justify-start">
         <h1 className="text-2xl text-center font-thin mb-5">Fetching Transactions</h1>
@@ -33,6 +33,7 @@ const LatestTransactions = () => {
         <hr className="bg-gray-100 w-full mb-4" />
         <div className="grid gap-2">
           {transactions.transactions[0].slice(0, 14).map((t) => {
+            console.log(t);
             const categorized = t.categoryName != null && t.categoryId != -1;
 
             return (

@@ -22,8 +22,11 @@ class SchedulerInstance:
         """Schedule jobs based on the provided configuration."""
         
         for job_config in scheduled_jobs:
+            # Extract job specific arguments
+            job_args = job_config.get("args", {})
+
             # Add each job to the scheduler
-            job = self.scheduler.add_job(job_config['func'], args=(self,), **job_config['schedule_args'])
+            job = self.scheduler.add_job(job_config['func'], args=(self, *job_args.values()), **job_config['schedule_args'])
             
             # If immediate_run is set, modify the job's next run time
             if job_config['immediate_run']:

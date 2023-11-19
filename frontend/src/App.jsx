@@ -6,14 +6,15 @@ import RequireAuth from "@/components/Auth/RequireAuth";
 import SigninPage from "@/pages/SigninPage/SigninPage"
 import SignupPage from "@/pages/SignupPage/SignupPage"
 import SetupPage from "@/pages/SetupPage/SetupPage"
-
+import PendingTransactions from "@/pages/PendingTransactions/PendingTransactions"
 
 function App() {
   const reset = useStore((state) => state.reset);
 
   const AuthenticatedDashboardPage = RequireAuth(DashboardPage);
   const AuthenticatedTransactionsPage = RequireAuth(TransactionsPage);
-  const AuthenticatedSetupPage = RequireAuth(SetupPage, false);
+  const AuthenticatedSetupPage = RequireAuth(SetupPage, false, false);
+  const AuthenticatedPendingPage = RequireAuth(PendingTransactions, true, false);
 
 
   return (
@@ -52,6 +53,7 @@ function App() {
           }
         />
         <Route path="/setup" element={<AuthenticatedSetupPage/>} />
+        <Route path="/pending-transactions" element={<AuthenticatedPendingPage/>} />
       </Routes>
     </Router>
   );

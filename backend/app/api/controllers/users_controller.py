@@ -1,6 +1,6 @@
 # Import necessary Flask modules and other dependencies
 from flask import Blueprint, request
-from app.database.models import Category, Transaction, User, AppUserCredentials, UserCategoryData, UserParsedCategory, db
+from app.database.models import Transaction, User, AppUserCredentials, UserCategorySpending, UserParsedCategory, UserCategory, db
 from app.api.helpers import get_user_object
 from app.credit_card_adapters.max_fetcher import login_user
 from config.app import INVITE_KEY
@@ -37,7 +37,7 @@ def login():
 
         return create_response("Login successful", 200, response_body)
     except Exception as e:
-        log(APP_NAME, "ERROR", f"Login failed for email: {email}, Error: {str(e)}")
+        log(APP_NAME, "ERROR", f"Login failed for email: {email}, Error: {e}")
         return create_response("An error occurred during login.", 500)
 
 
@@ -47,8 +47,8 @@ def register():
     try:
         # Extract registration data from the request
         data = request.get_json()
-        email = data.get("email", "")
-        invite_key = data.get("invite_key", "")
+        email = data["email"]
+        invite_key = data["inviteKey"]
 
         # Log the registration attempt
         log(APP_NAME, "INFO", f"Registration request received for email: {email}, from IP: {request.remote_addr}")
@@ -56,46 +56,39 @@ def register():
         # Validate the registration form
         form = RegistrationForm(data=data)
         if not form.validate_on_submit():
-            # Log form validation failure
             log(APP_NAME, "DEBUG", f"Registration form validation failed for user: {email}, errors: {form.errors}")
-            return create_response(f"Form validation failed, errors: {form.errors}", 400)
+            return create_response(f"Form validation failed", 400)
 
         # Check if the email is already registered
         if User.query.filter_by(email=email).first():
+            log(APP_NAME, "DEBUG", f"Registration failed for user: {email}, user already registered")
             return create_response("Email already registered", 400)
 
         # Verify invite key
         if invite_key != INVITE_KEY:
+            log(APP_NAME, "DEBUG", f"Registration form validation failed for user: {email}, invalid invite key")
             return create_response("Invalid invite key", 401)
 
         # Create a new user and associated credentials
-        user = User(email=email, password=hash_password(data.get("password", "")))
-        user_credentials = AppUserCredentials(
-            userEmail=email,
-            username=data.get("appUsername", ""),
-            password=data.get("appPassword", ""),
-            identityDocumentNumber=data.get("appIdentityDocumentNumber", ""),
-        )
-
-        user.appUserCredentials = user_credentials
+        user = User(email=email, password=hash_password(data["password"]))
 
         # Save the new user to the database
         db.session.add(user)
         db.session.commit()
 
-        # Generate an access token for the new user
-        access_token = create_access_token(identity=email)
+        # Prepare the response for successful login
+        response_body = {"user": get_user_object(email)}
+
         log(APP_NAME, "INFO", f"User registered successfully for email: {email}")
-        return create_response("Registration successful", 200, {"access_token": access_token})
+        return create_response("Registration successful", 200, response_body)
 
     except Exception as e:
         # Roll back in case of exceptions and logging the error
         db.session.rollback()
-        log(APP_NAME, "ERROR", f"Registration failed for email: {email}, Error: {str(e)}")
+        log(APP_NAME, "ERROR", f"Registration failed for email: {email}, Error: {e}")
         return create_response("Registration failed", 500)
 
 
-# Endpoint for deleting a user and their associated data
 @users_bp.route("/delete", methods=["POST"])
 @jwt_required()
 def delete_user():
@@ -112,10 +105,10 @@ def delete_user():
     try:
         # Collect all related data for deletion
         related_data = [
-            Category.query.filter(Category.owner == email).all(),
+            UserCategorySpending.query.filter(UserCategorySpending.userEmail == email).all(),
+            UserCategory.query.filter(UserCategory.owner == email).all(),
             Transaction.query.filter(Transaction.userEmail == email).all(),
             UserParsedCategory.query.filter(UserParsedCategory.userEmail == email).all(),
-            UserCategoryData.query.filter(UserCategoryData.userEmail == email).all(),
             AppUserCredentials.query.filter(AppUserCredentials.userEmail == email).all(),
             [user],
         ]
@@ -132,7 +125,7 @@ def delete_user():
     except Exception as e:
         # Roll back in case of exceptions and logging the error
         db.session.rollback()
-        log(APP_NAME, "ERROR", f"User deletion failed for email: {email}, Error: {str(e)}")
+        log(APP_NAME, "ERROR", f"User deletion failed for email: {email}, Error: {e}")
         return create_response("Deletion failed", 500)
 
 
@@ -183,29 +176,18 @@ def setup_user():
                 userEmail=email,
                 username=cc_credentials["username"],
                 password=cc_credentials["password"],
-                identityDocumentNumber=cc_credentials["idNumber"],
+                identityDocumentNumber=cc_credentials["id"],
             )
             db.session.add(new_credentials)
 
         # Process categories
         user_categories = []
         for category in categories:
-            target_category = Category.query.filter_by(categoryName=category["categoryName"]).first()
-            categoryId = target_category.id if target_category else -1
-
-            if categoryId == -1:
-                new_category = Category(categoryName=category["categoryName"], owner=email)
-                db.session.add(new_category)
-                db.session.flush()  # To get new_category.id
-                categoryId = new_category.id
-
             user_categories.append(
-                UserCategoryData(
-                    userEmail=email,
-                    categoryId=categoryId,
-                    monthlyBudget=category.get("budget", 0),
-                    monthlySpending=0,
-                    monthlyAverage=0,
+                UserCategory(
+                    owner=email,
+                    monthlyBudget=category["budget"],
+                    categoryName=category["categoryName"]
                 )
             )
 
@@ -234,15 +216,33 @@ def test_credit_card_credentials():
         password = data["password"]
         identity_document_number = data["id"]
 
-        try:
-            # Attempt to log in with the provided credentials
-            login_user({"username": username, "password": password, "id": identity_document_number})
+        # Attempt to log in with the provided credentials
+        login_result = login_user({"username": username, "password": password, "id": identity_document_number})
+        if login_result:
             log(APP_NAME, "INFO", f"Credit card credentials validated for email: {email}")
             return create_response("Credentials are valid", 200)
-        except:
+        else:
             # Log and return in case of invalid credentials
             log(APP_NAME, "WARNING", f"Invalid credit card credentials for email: {email}")
             return create_response("Invalid credentials", 401)
     except Exception as e:
-        log(APP_NAME, "ERROR", f"Error testing credit card credentials for email: {email}: {str(e)}")
+        log(APP_NAME, "ERROR", f"Error testing credit card credentials for email: {email}: {e}")
         return create_response("Internal server error", 500)
+
+
+@users_bp.route("/get-user-data", methods=["GET"])
+@jwt_required()
+def get_user_data():
+    """Endpoint for fetching user data"""
+
+    email = get_jwt_identity()
+    log(APP_NAME, "INFO", f"User data request received for email: {email}, from IP: {request.remote_addr}")
+
+    try:
+        user_object = get_user_object(email)
+        log(APP_NAME, "INFO", f"Successfully fetched user data for email: {email}")
+        return create_response("Successfully fetched user data", 200, user_object)
+    except Exception as e:
+        log(APP_NAME, "ERROR", f"Error fetching user data for email: {email}: {e}")
+        return create_response("Internal server error", 500)
+

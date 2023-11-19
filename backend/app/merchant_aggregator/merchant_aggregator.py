@@ -5,11 +5,11 @@ from app.helper import get_prompt_template, query_chatgpt
 from app.logger import log
 from app.merchant_aggregator.utils import (
     _split_into_chunks,
-    extract_merchant_from_transaction,
-    has_timed_out,
-    get_categories_from_chatgpt_response,
-    retrieve_cached_categories,
-    get_user_categories_dict,
+    _extract_merchant_from_transaction,
+    _has_timed_out,
+    _get_categories_from_chatgpt_response,
+    _retrieve_cached_categories,
+    _get_user_categories_dict,
 )
 import os
 
@@ -24,14 +24,14 @@ def _categorize_chunk(chunk, user_categories_dict, user_email, queue):
     categories_string = ",".join(user_categories_dict.keys())
     transactions_string = "\n".join(
         [
-            f'"{extract_merchant_from_transaction(transaction.merchantData["name"])}"'
+            f'"{_extract_merchant_from_transaction(transaction.merchantData["name"])}"'
             for transaction in chunk
         ]
     )
     prompt = get_prompt_template(categories_string, transactions_string)
     chatgpt_response = query_chatgpt(prompt)
 
-    generated_categories = get_categories_from_chatgpt_response(chatgpt_response)
+    generated_categories = _get_categories_from_chatgpt_response(chatgpt_response)
     parsed_categories = []
 
     for index in range(len(generated_categories)):
@@ -80,7 +80,7 @@ def _process_chunk(chunks, user_categories, processing_data):
 
     start_time = datetime.now()
 
-    while not has_timed_out(start_time, timeout):
+    while not _has_timed_out(start_time, timeout):
         active_processes = [p for p in processes if p["process"].is_alive()]
         if not active_processes:
             break
@@ -106,7 +106,7 @@ def _process_chunk(chunks, user_categories, processing_data):
     return process_results
 
 
-def process_data_in_chunks(transactions, user_categories, processing_data):
+def _process_data_in_chunks(transactions, user_categories, processing_data):
     """Splits transactions into chunks and processes them in parallel batches"""
 
     chunk_size = processing_data["chunk_size"]
@@ -140,24 +140,43 @@ def process_data_in_chunks(transactions, user_categories, processing_data):
 
     return results
 
+
 def categorize_for_all_users(user_transactions_dict):
-    """Processes and categorizes transactions for multiple users.
-    Uses the UserParsedCategory tabled to parse previously parsed transactions with cache
-    Uses ChatGPT for uncached transactions."""
+    """
+    Processes and categorizes transactions for multiple users.
+    Uses the UserParsedCategory table to parse previously parsed transactions with cache.
+    Uses ChatGPT for uncached transactions.
+
+    Args:
+        user_transactions_dict (dict): A dictionary where keys are user emails and values are lists of transaction objects.
+
+    Returns:
+        tuple: A tuple containing two elements:
+               1. A list of dictionaries, each containing 'id' and 'categoryId' of processed transactions.
+               2. A list of user parsed categories.
+    """
 
     user_parsed_categories = []
     parsed_transactions = []
 
+    # Iterate over each user and their transactions
     for email, transactions in user_transactions_dict.items():
         if transactions:
             log(APP_NAME, "INFO", f"Categorizing transactions for user {email}, total transactions {len(transactions)}")
-            user_categories = get_user_categories_dict(email)
-            cached_merchants_mapping = retrieve_cached_categories(email)
+
+            # Retrieve user-specific categories and cached categories
+            user_categories = _get_user_categories_dict(email)
+            cached_merchants_mapping = _retrieve_cached_categories(email)
             cached_transactions = []
 
+            # Iterate over each transaction for the user
             for t in transactions:
-                merchant_name = extract_merchant_from_transaction(t.merchantData["name"])
+
+                # Extract the merchant name from the transaction data
+                merchant_name = _extract_merchant_from_transaction(t.merchantData["name"])
                 cached_value = cached_merchants_mapping.get(merchant_name, None)
+
+                # If there's a cached category for the merchant, use it and remove the transaction from processing
                 if cached_value is not None:
                     t.categoryId = cached_value
                     transactions.remove(t)
@@ -165,8 +184,9 @@ def categorize_for_all_users(user_transactions_dict):
 
             log(APP_NAME, "DEBUG", f"Found {len(cached_transactions)} transactions with cached merchants")
 
+            # Set up processing data for chunk processing
             processing_data = {
-                "timeout": 60,
+                "timeout": 30,
                 "chunk_size": 8,
                 "parallel_count": 20,
                 "user_email": email
@@ -174,14 +194,20 @@ def categorize_for_all_users(user_transactions_dict):
 
             log(APP_NAME, "DEBUG", f"Processing data in chunks. Unchached transactions: {len(transactions)}, processing_data: {processing_data}")
 
-            results = process_data_in_chunks(transactions, user_categories, processing_data)
+            # Process uncached transactions in chunks
+            results = _process_data_in_chunks(transactions, user_categories, processing_data)
 
+            # Combine processed transactions with cached ones
             processed_transactions = results["transactions"]
             processed_transactions.extend(cached_transactions)
             user_parsed_categories.extend(results["user_parsed_categories"])
 
+            # Prepare the final list of parsed transactions
             parsed_transactions.extend([{"id": t.id, "categoryId": t.categoryId} for t in processed_transactions if t is not None])
+
+            # Log the completion of categorization for a user
             log(APP_NAME, "INFO", f"Finished categorizing transactions for user {email}, processed {len(processed_transactions)} new transactions")
         else:
             log(APP_NAME, "INFO", f"No transactions to categorize for user {email}")
+
     return (parsed_transactions, user_parsed_categories)

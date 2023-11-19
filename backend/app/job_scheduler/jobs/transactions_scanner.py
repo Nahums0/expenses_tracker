@@ -1,14 +1,10 @@
 import datetime
 from app.database.models import Transaction, db
-from app.helper import (
-    add_failed_login_user_warning,
-    fetch_users_for_scraping,
-    process_recurring_transactions,
-    transform_transactions_for_user,
-)
+from app.helper import add_failed_login_user_warning, fetch_users_for_scraping
 from app.logger import log
 from app.credit_card_adapters.max_fetcher import fetch_transactions_from_max
-from config.app import DEEP_TRANSACTIONS_SCAN_DEPTH_IN_DAYS
+from app.job_scheduler.jobs.monthly_spending_aggregator import aggregate_monthly_spending
+from config.app import DEEP_TRANSACTIONS_SCAN_DEPTH_IN_DAYS, SHALLOW_TRANSACTION_SCAN_DEPTH_IN_DAYS
 
 APP_NAME = "Transactions Scanner"
 
@@ -56,7 +52,7 @@ def _calculate_scan_depth(user):
     return (
         DEEP_TRANSACTIONS_SCAN_DEPTH_IN_DAYS
         if last_scan_date is None
-        else (datetime.datetime.now() - last_scan_date).days + 1
+        else (datetime.datetime.now() - last_scan_date).days + SHALLOW_TRANSACTION_SCAN_DEPTH_IN_DAYS
     )
 
 
@@ -117,7 +113,14 @@ def scan_users_transactions(scheduler):
                 except Exception as e:
                     log(APP_NAME, "ERROR", f"Failed to set categorized transactions. Error: {str(e)}")
                     return
-            log(APP_NAME, "INFO", "Finished transactions scan")
+
+                # Manually trigger monthly spending aggregator for changed users
+                affected_users = list(transactions_to_add.keys())
+                log(APP_NAME, "INFO", f"Triggering monthly spending aggregator for {len(affected_users)} users")
+                scheduler.scheduler.add_job(aggregate_monthly_spending, args=(scheduler, affected_users))
+
+            log(APP_NAME, "INFO", "Finished transactions scan, triggering monthly spending aggregator")
+
     except Exception as e:
         log(APP_NAME, "ERROR", f"An error occured while scanning transactions: {e}")
         raise e

@@ -1,6 +1,6 @@
 from flask import Blueprint, request
 from flask_jwt_extended import get_jwt_identity, jwt_required
-from app.database.models import Category, UserParsedCategory, db
+from app.database.models import UserParsedCategory, UserCategory, db
 from app.logger import log
 from app.helper import create_response
 from sqlalchemy import and_, or_
@@ -105,7 +105,7 @@ def _extract_merchant_data(data):
 def _is_valid_category(category_id, email):
     """Validate if the category exists and belongs to the user."""
 
-    category = Category.query.filter(Category.id == category_id).first()
+    category = UserCategory.query.filter(UserCategory.id == category_id).first()
     return category and (not category.owner or category.owner == email)
 
 

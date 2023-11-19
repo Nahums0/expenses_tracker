@@ -3,7 +3,7 @@ from app.logger import log
 
 APP_NAME = "Monthly Averages Calculator"
 
-def monthly_averages_calculator(scheduler):
+def calculate_monthly_averages(scheduler):
     """Main function to calculate monthly averages."""
 
     log(APP_NAME, "INFO", "Starting monthly averages calculator")

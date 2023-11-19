@@ -24,7 +24,7 @@ const SigninPage = () => {
       });
 
       const data = await response.json();
-      console.log('data', data)
+
       if (!response.ok) {
         setError(data.message || "An error occurred");
       } else {
@@ -34,6 +34,7 @@ const SigninPage = () => {
       }
     } catch (error) {
       setError("Network error or unexpected problem occurred.");
+      console.error(error)
     }
   };
 

@@ -1,8 +1,8 @@
 import datetime
-from flask import Blueprint, request, jsonify
+from flask import Blueprint, request
 from flask_jwt_extended import get_jwt_identity, jwt_required
 from sqlalchemy import and_
-from app.database.models import Category, RecurringTransactions, Transaction, UserCategoryData, db
+from app.database.models import RecurringTransactions, Transaction, UserCategory, UserCategorySpending, db
 from app.helper import create_response
 from app.logger import log
 from app.api.helpers import (
@@ -119,10 +119,10 @@ def update_recurring_transaction():
             return create_response("Object validation failed", 400, {"errors": validation_errors})
 
         # Verify provided category exists and belongs to the user
-        category = UserCategoryData.query.filter(
+        category = UserCategory.query.filter(
             and_(
-                UserCategoryData.userEmail == email,
-                UserCategoryData.categoryId == updated_transaction["categoryId"],
+                UserCategory.owner == email,
+                UserCategory.id == updated_transaction["categoryId"],
             )
         ).first()
 
@@ -167,10 +167,10 @@ def create_recurring_transaction():
             return create_response("Object validation failed", 400, {"errors": validation_errors})
 
         # Query the Category based on the owner's email and the provided category name
-        category = UserCategoryData.query.filter(
+        category = UserCategory.query.filter(
             and_(
-                UserCategoryData.userEmail == email,
-                UserCategoryData.id == new_transaction_data["categoryId"],
+                UserCategory.owner == email,
+                UserCategory.id == new_transaction_data["categoryId"],
             )
         ).first()
 
@@ -218,3 +218,30 @@ def force_fetch_transactions():
     """
     # TODO: Implement logic to force fetching transactions
     pass
+
+
+@transactions_bp.route("/get-monthly-spending-history", methods=["GET"])
+@jwt_required()
+def get_monthly_spending_history():
+    """Get recieve history of monthly spending"""
+    email = get_jwt_identity()
+
+    try:
+        spending_data = {}
+        spending_history = UserCategorySpending.query.filter_by(
+            userEmail=email,
+        ).order_by(
+            UserCategorySpending.date,
+        )
+
+        for monthly_category_spending in spending_history:
+            date = monthly_category_spending.date
+            spending_amount = monthly_category_spending.spendingAmount
+
+            spending_data.setdefault(date, 0)
+            spending_data[date] += spending_amount
+
+        return create_response("Successfully fetched monthly spending history", 200, spending_data)
+    except Exception as e:
+        log(APP_NAME, "ERROR", f"Error fetching monthly spending history for email: {email}, error: {e}")
+        return create_response("An error occurred while fetching monthly spending history", 500)

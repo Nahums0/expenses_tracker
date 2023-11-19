@@ -51,7 +51,6 @@ function TransactionsTable() {
   };
 
   const handlePageSizeChange = (event) => {
-    console.log(event.target.value);
     setPageSize(Number(event.target.value));
     setCurrentPage(1);
   };

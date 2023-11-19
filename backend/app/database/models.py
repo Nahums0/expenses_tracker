@@ -31,8 +31,8 @@ class User(db.Model):
     monthlyBudget = Column(Integer)
     currency = Column(String(255), nullable=True)
     shouldGetScrapped = Column(Boolean, default=True)
+    initialSetupDone = Column(Boolean, default=False)    
     lastTransactionsScanDate = Column(DateTime, default=None)
-    initialSetupDone = Column(Boolean, default=False)
 
     appUserCredentials = relationship("AppUserCredentials", back_populates="user", uselist=False)
 
@@ -48,67 +48,49 @@ class AppUserCredentials(db.Model):
     user = relationship("User", back_populates="appUserCredentials")
 
 
-class Category(db.Model, IconMixin):
-    __tablename__ = "category"
+class UserCategory(db.Model, IconMixin):
+    __tablename__ = "userCategory"
 
     id = Column(Integer, primary_key=True, autoincrement=True)
     categoryName = Column(String(255), nullable=False)
     owner = Column(String(255), ForeignKey("user.email"), nullable=True)
+    monthlyBudget = Column(Integer)
+    isPinned = Column(Boolean, default=False)
+
+    parentUser = relationship("User")
 
     def serialize(self):
         """
-        Serialize the Category object to a dictionary.
+        Serialize the UserCategory object to a dictionary.
         """
         data = {
             "id": self.id,
             "categoryName": self.categoryName,
-            "owner": self.owner
-        }
-
-        return data
-
-
-class UserCategoryData(db.Model):
-    __tablename__ = "userCategoryData"
-
-    id = Column(Integer, primary_key=True, autoincrement=True)
-    categoryId = Column(Integer, ForeignKey("category.id"), nullable=True)
-    userEmail = Column(String(255), ForeignKey("user.email"), nullable=True)
-    monthlyBudget = Column(Integer)
-    monthlySpending = Column(Integer)
-    monthlyAverage = Column(Integer)
-    isPinned = Column(Boolean, default=False)
-
-    parentCategory = relationship("Category")
-    parentUser = relationship("User")
-
-    def serialize(self, includeCategoryData=True):
-        """
-        Serialize the UserCategoryData object to a dictionary.
-        """
-        data = {
-            "id": self.id,
-            "categoryId": self.categoryId,
-            "userEmail": self.userEmail,
+            "owner": self.owner,
             "monthlyBudget": self.monthlyBudget,
-            "monthlySpending": self.monthlySpending,
-            "monthlyAverage": self.monthlyAverage,
             "isPinned": self.isPinned,
         }
 
-        if includeCategoryData:
-            data["categoryName"] = self.parentCategory.categoryName
-
         return data
+
+
+class UserCategorySpending(db.Model):
+    __tablename__ = "userCategorySpending"
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    userEmail = Column(String(255), ForeignKey("user.email"), nullable=True)
+    userCategoryId = Column(Integer, ForeignKey("userCategory.id"))
+    date = Column(Integer, nullable=False, index=True)  # 202311
+    spendingAmount = Column(Integer)
 
 
 class CategoryMonthlyAveragesHistory(db.Model):
     __tablename__ = "categoryMonthlyAveragesHistory"
 
     id = Column(Integer, primary_key=True, autoincrement=True)
-    categoryId = Column(Integer, ForeignKey("userCategoryData.id"))
-    monthlyAverageDate = Column(Date)
-    monthlyAverageAmount = Column(Integer)
+    userCategoryId = Column(Integer, ForeignKey("userCategory.id"))
+    date = Column(Date)
+    averageAmount = Column(Integer)
 
 
 class Transaction(db.Model):
@@ -117,7 +99,7 @@ class Transaction(db.Model):
     id = Column(String, primary_key=True, nullable=False)
     arn = Column(String(255), nullable=False)
     userEmail = Column(String(255), ForeignKey("user.email"))
-    categoryId = Column(Integer, ForeignKey("category.id"), nullable=False, default=-1)
+    categoryId = Column(Integer, ForeignKey("userCategory.id"), nullable=False, default=-1)
 
     transactionAmount = Column(Float)
     paymentDate = Column(DateTime)
@@ -131,7 +113,7 @@ class Transaction(db.Model):
 
     user = relationship("User")
     recurring_transaction = relationship("RecurringTransactions", back_populates="transaction", uselist=False)
-    category = relationship("Category")
+    category = relationship("UserCategory")
 
     def serialize(self, include_category_name=True):
         """
@@ -165,7 +147,7 @@ class UserParsedCategory(db.Model):
     id = Column(Integer, primary_key=True, autoincrement=True)
     chargingBusiness = Column(String(255))
     userEmail = Column(String(255), ForeignKey("user.email"), nullable=True)
-    targetCategoryId = Column(Integer, ForeignKey("category.id"))
+    targetCategoryId = Column(Integer, ForeignKey("userCategory.id"))
 
 
 class RecurringTransactions(db.Model, IconMixin):

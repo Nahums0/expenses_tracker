@@ -1,23 +1,31 @@
+# Standard library imports
 import calendar
+import json
 import logging
 import os
-import json
 import uuid
-from datetime import datetime
+from datetime import datetime, timedelta
+
+# Third-party imports
 import bcrypt
-import openai
 import requests
-from sqlalchemy import and_
-from flask import jsonify, make_response
+from flask import Flask, jsonify, make_response
 from flask_wtf import FlaskForm
+from sqlalchemy import and_
 from sqlalchemy.orm import joinedload
 from sqlalchemy.orm.attributes import InstrumentedAttribute
 from wtforms import StringField, PasswordField
 from wtforms.validators import DataRequired, Email, Length
 
-from app.database.models import User, Transaction, UserCategoryData, UserWarnings, db
+# Local application imports
+from app.api.api import register_api_routes
+from app.database.app import initialize_database
+from app.database.models import User, Transaction, UserWarnings, db
+from app.job_scheduler.app import start_scheduler
 from config.app import STOP_AT_FAILED_LOGIN_THRESHOLD
 from config.logger import LOG_FORMAT, LOG_LEVEL
+from lib.jwt.jwt import jwt
+
 
 # Constants
 MIN_PASSWORD_LENGTH = 8
@@ -38,6 +46,41 @@ PROMPT_TEMPLATE = (
     '"Category for #{{index_number}}: [chosen_category_2]"\n'
     "END OF OUTPUT"
 )
+
+
+# Creata a flask app
+def create_app(initialize_db=True, initialize_scheduler=True):
+    JWT_SECRET_KEY = os.environ.get("JWT_SECRET_KEY")
+    IS_DEBUG = os.environ.get("IS_DEBUG", "TRUE") == "TRUE"
+    DATABASE_URI = os.environ.get("DATABASE_URI")
+
+    db_uri = os.environ.get("DATABASE_URI", None)
+    if db_uri is None:
+        if IS_DEBUG:
+            # Setup default database uri for debugging purposes
+            db_uri = DATABASE_URI
+            os.environ["DATABASE_URI"] = db_uri
+        else:
+            raise Exception("The 'DATABASE_URI' env variable is missing, cannot create the app")
+
+    # Initialize api
+    app = Flask(__name__)
+    app = register_api_routes(app)
+    app.config["JSON_AS_ASCII"] = False
+    app.config["SQLALCHEMY_DATABASE_URI"] = db_uri
+    app.config["WTF_CSRF_ENABLED"] = False
+    app.config["JWT_SECRET_KEY"] = JWT_SECRET_KEY
+    app.config["JWT_ACCESS_TOKEN_EXPIRES"] = timedelta(days=1)
+
+    jwt.init_app(app)
+
+    if initialize_db:
+        initialize_database(app)
+
+    if initialize_scheduler:
+        start_scheduler(app)
+
+    return app
 
 
 # Helper Functions and Classes
@@ -63,16 +106,7 @@ def create_response(message, status_code, data=None):
 class RegistrationForm(FlaskForm):
     email = StringField("Email", validators=[DataRequired(), Email()])
     password = PasswordField("Password", validators=[DataRequired(), Length(min=MIN_PASSWORD_LENGTH)])
-    appUsername = StringField("App Username", validators=[DataRequired(), Length(min=MIN_APP_CREDS_LENGTH)])
-    appPassword = StringField("App Password", validators=[DataRequired(), Length(min=MIN_APP_CREDS_LENGTH)])
-    appIdentityDocumentNumber = StringField(
-        "App Identity Document Number",
-        validators=[
-            DataRequired(),
-            Length(min=9, max=10),
-            lambda form, field: field.data.isdigit(),
-        ],
-    )
+    inviteKey = StringField("inviteKey", validators=[DataRequired()])
 
 
 class UserLoginForm(FlaskForm):
@@ -195,18 +229,6 @@ def process_recurring_transactions(recurring_transactions):
     return transactions_to_add
 
 
-def initiate_category_data(category_id, user_email):
-    db.session.add(
-        UserCategoryData(
-            categoryId=category_id,
-            userEmail=user_email,
-            monthlyBudget=-1,
-            monthlySpending=0,
-            monthlyAverage=0,
-        )
-    )
-
-
 def query_chatgpt(prompt):
     headers = {"Content-Type": "application/json", "Authorization": f"Bearer {OPENAI_API_KEY}"}
     data = {
@@ -231,3 +253,8 @@ def add_failed_login_user_warning(user_email):
         user_warning.failedLoginCount += 1
 
     db.session.commit()
+
+
+# Convert a date to a number format (1/11/2023 -> 202311)
+def date_to_number(date):
+    return date.year * 100 + date.month

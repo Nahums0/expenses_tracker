@@ -3,11 +3,13 @@ import { persist } from "zustand/middleware";
 import fetchTransactions from "./fetchTransactions";
 import fetchCategories from "./fetchCategories";
 import fetchRecurringTransactions from "./fetchRecurringTransactions";
+import fetchSpendingHistory from "./fetchSpendingHistory";
 
 const initialState = {
   user: null,
   transactions: null,
   recurringTransactions: null,
+  spendingHistory: {0:0},
   categories: null,
   sidebarOpen: true,
   initialSetupData: {
@@ -21,6 +23,7 @@ const initialState = {
   },
 };
 
+// TODO: Add mecanism for a time based fetch
 export const useStore = create(
   persist(
     (set) => ({
@@ -38,16 +41,17 @@ export const useStore = create(
 
         set((prevState) => {
           const currentTimestamp = new Date().getTime() / 1000;
-          
-          try {
 
+          try {
             // Check if newly recived transactions should override previous state transactions
-            // Based on null presence and time difference from the last fetch time 
+            // Based on null presence and time difference from the last fetch time
             const lastFetchTimestamp = prevState?.transactions?.fetchTimestamp || 0;
             const shouldOverride = currentTimestamp - lastFetchTimestamp > 60 * 60 * 24;
 
             if (shouldOverride) {
-              return { transactions: { chunkSize, totalTransactionsCount, transactions, 'fetchTimestamp':currentTimestamp } };
+              return {
+                transactions: { chunkSize, totalTransactionsCount, transactions, fetchTimestamp: currentTimestamp },
+              };
             }
 
             const updatedTransactions = [];
@@ -80,12 +84,14 @@ export const useStore = create(
                 chunkSize,
                 totalTransactionsCount,
                 transactions: updatedTransactions,
-                'fetchTimestamp': lastFetchTimestamp,
+                fetchTimestamp: lastFetchTimestamp,
               },
             };
           } catch (error) {
             console.error("Error merging transactions:", error);
-            return { transactions: { chunkSize, totalTransactionsCount, transactions, 'fetchTimestamp':currentTimestamp } };
+            return {
+              transactions: { chunkSize, totalTransactionsCount, transactions, fetchTimestamp: currentTimestamp },
+            };
           }
         });
       },
@@ -96,6 +102,11 @@ export const useStore = create(
       fetchAndSetRecurringTransactions: async (accessToken) => {
         const recurringTransactions = await fetchRecurringTransactions(accessToken);
         set({ recurringTransactions });
+      },
+      fetchAndSetSpendingHistory: async () => {
+        const { user } = useStore.getState();
+        const spendingHistory = await fetchSpendingHistory(user.accessToken);
+        set({ spendingHistory });
       },
       setSetupMonthlyBudget: (budget) =>
         set((state) => ({

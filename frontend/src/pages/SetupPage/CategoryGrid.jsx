@@ -20,7 +20,7 @@ export default function CategoryGrid({
         });
 
         const data = await response.json();
-
+        console.log(data)
         if (!response.ok) {
           setErrorMessage(response.statusText || "An error occurred");
         } else {
@@ -44,7 +44,6 @@ export default function CategoryGrid({
   };
 
   const handleCategoryDelete = (categoryIndex) => {
-    console.log("categoryIndex", categoryIndex);
     setCategories(categories.filter((_, index) => index !== categoryIndex));
   };
 

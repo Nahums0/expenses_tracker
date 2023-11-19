@@ -7,10 +7,14 @@ def get_user_object(email):
     """Generate a user object"""
 
     user = User.query.filter(User.email == email).first()
+    last_transactions_scan_date = user.lastTransactionsScanDate
+
+    if last_transactions_scan_date is not None:
+        last_transactions_scan_date = int(datetime.timestamp(user.lastTransactionsScanDate))
 
     return {
         "email": email,
-        "lastTransactionsScanDate": int(datetime.timestamp(user.lastTransactionsScanDate)),
+        "lastTransactionsScanDate": last_transactions_scan_date,
         "initialSetupDone": user.initialSetupDone,
         "fullName": user.fullName,
         "accessToken": create_access_token(identity=email),
@@ -70,7 +74,7 @@ def update_recurring_transaction_fields(recurring_transaction, updated_transacti
     """
     Update the fields of the recurring transaction with the values from the updated transaction.
     """
-    
+
     recurring_transaction.transactionName = updated_transaction.get("name")
     recurring_transaction.transaction.transactionAmount = updated_transaction.get("amount")
     recurring_transaction.frequencyValue = updated_transaction.get("frequencyValue")
@@ -110,7 +114,7 @@ def distribute_transactions_across_chunks(transactions, start_index, total_count
     # Iterate over transactions and place each in the appropriate chunk
     for i in range(start_index, start_index + len(transactions)):
         current_chunk_index = calculate_chunk_index(i, chunk_size)
-        
+
         # Initialize chunk if it's empty
         if chunks[current_chunk_index] is None:
             chunks[current_chunk_index] = initialize_empty_chunk(chunk_size)

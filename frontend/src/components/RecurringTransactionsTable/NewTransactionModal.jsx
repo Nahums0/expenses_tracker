@@ -58,7 +58,6 @@ const NewRecurringTransaction = ({ categories, onSubmit }) => {
   };
 
   const handleSubmit = (e) => {
-    console.log("Sumbitted yo");
     e.preventDefault();
     if (validateInput()) {
       onSubmit(formData);

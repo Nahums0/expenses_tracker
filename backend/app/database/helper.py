@@ -1,4 +1,4 @@
-from app.database.models import Category, db
+from app.database.models import UserCategory, db
 
 def db_seed():
     # Define default categories
@@ -22,7 +22,7 @@ def db_seed():
     ]
 
     # Fetch existing categories from the database by their names and turn them into a set
-    existing_category_names = {category.categoryName for category in Category.query.all()}
+    existing_category_names = {category.categoryName for category in UserCategory.query.all()}
     changes_made = False
 
     for category in default_categories:
