@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React from "react";
 
 const RecurringTransactionRow = React.memo(({ transaction, onEdit }) => {
   const formatFrequency = (freqValue, freqUnit) => {
@@ -29,7 +29,7 @@ const RecurringTransactionRow = React.memo(({ transaction, onEdit }) => {
     } else {
       // If the start date is in the past or present
       if (scannedAt && scannedAt >= startDate) {
-        return "Yes"; // Active if scanned at or after the start date
+        return "Active"; // Active if scanned at or after the start date
       } else {
         return "Waiting for scan"; // Not active if not scanned yet
       }
@@ -38,7 +38,7 @@ const RecurringTransactionRow = React.memo(({ transaction, onEdit }) => {
 
   return (
     <tr className="bg-white border-b ">
-      <td className={"px-6 py-4 text-left truncate "}>{transaction.transactionName}</td>
+      <td className={"px-6 py-4 text-left truncate font-bold"}>{transaction.transactionName}</td>
       <td className={"px-6 py-4 text-left truncate "}>{transaction.transaction.transactionAmount.toFixed(2)}</td>
       <td className={"px-6 py-4 text-left truncate "}>
         {formatFrequency(transaction.frequencyValue, transaction.frequencyUnit)}

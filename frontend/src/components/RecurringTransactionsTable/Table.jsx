@@ -7,25 +7,26 @@ import NewTransactionModal from "./NewTransactionModal";
 import EditTransactionModal from "./EditTransactionModal";
 
 function RecurringTransactionsTable() {
-  const { recurringTransactions, user, fetchAndSetRecurringTransactions } = useStore();
+  const { recurringTransactions, user, categories, fetchAndSetRecurringTransactions, fetchAndSetCategories } =
+    useStore();
   const [isLoading, setIsLoading] = useState(true);
   const [modalState, setModalState] = useState({ isOpen: false, type: null, transaction: null });
 
-  useEffect(() => {
-    async function fetchCategories() {
-      setIsLoading(true);
-      try {
-        await fetchAndSetRecurringTransactions(user.accessToken);
-      } catch (error) {
-        console.error("Failed to fetch categories", error);
-      }
-      setIsLoading(false);
+  async function fetchTransactions() {
+    setIsLoading(true);
+    try {
+      await Promise.all([fetchAndSetRecurringTransactions(), fetchAndSetCategories()]);
+    } catch (error) {
+      console.error("Failed to fetch transactions", error);
     }
+    setIsLoading(false);
+  }
 
-    fetchCategories();
+  useEffect(() => {
+    fetchTransactions();
   }, []);
 
-  const newRecurringTransactionHandler = () => {
+  const openNewTransactionModal = () => {
     openModal("new");
   };
 
@@ -35,6 +36,50 @@ function RecurringTransactionsTable() {
 
   const closeModal = () => {
     setModalState({ isOpen: false, type: null, transaction: null });
+  };
+
+  const transactionsApiRequestHandler = async (apiRoute, apiMethod, requestBody, setError) => {
+    try {
+      const response = await fetch(apiRoute, {
+        method: apiMethod,
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${user.accessToken}`,
+        },
+        body: JSON.stringify(requestBody),
+      });
+      console.log(requestBody);
+      const data = await response.json();
+
+      if (!response.ok || response.status != 200) {
+        console.error("Error creating new recurring transaction:", data.message, data.data);
+        setError({ server: data.data ? data.data : { errors: data.message } });
+      } else {
+        fetchTransactions();
+        closeModal();
+        console.log(data);
+      }
+    } catch (error) {
+      console.error(error);
+      setError({ server: "Network error or unexpected problem occurred." });
+    }
+  };
+
+  const newTransactionHandler = async (transactionData, setError) => {
+    transactionsApiRequestHandler("/api/transactions/create-recurring-transaction", "POST", transactionData, setError);
+  };
+
+  const editTransactionHandler = (transactionData, setError) => {
+    transactionsApiRequestHandler("/api/transactions/update-recurring-transaction", "POST", transactionData, setError);
+  };
+
+  const onDelete = async (transactionData, setError) => {
+    transactionsApiRequestHandler(
+      "/api/transactions/delete-recurring-transaction",
+      "DELETE",
+      transactionData,
+      setError
+    );
   };
 
   return (
@@ -63,7 +108,7 @@ function RecurringTransactionsTable() {
                 <td colSpan={6} className={"px-6 py-4 text-left truncate "}>
                   <div
                     className="text-center cursor-pointer hover:opacity-80 text-blue-500"
-                    onClick={newRecurringTransactionHandler}
+                    onClick={openNewTransactionModal}
                   >
                     Add New Recurring Transaction
                   </div>
@@ -79,9 +124,14 @@ function RecurringTransactionsTable() {
           onClose={closeModal}
         >
           {modalState.type === "new" ? (
-            <NewTransactionModal categories={["Bills", "General", "Groceries"]} />
+            <NewTransactionModal categories={categories} onSubmit={newTransactionHandler} />
           ) : (
-            <EditTransactionModal categories={["Bills", "General", "Groceries"]} transaction={modalState.transaction} />
+            <EditTransactionModal
+              categories={categories}
+              transaction={modalState.transaction}
+              onSubmit={editTransactionHandler}
+              onDelete={onDelete}
+            />
           )}
         </Modal>
       )}

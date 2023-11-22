@@ -8,7 +8,7 @@ const CategoryCard = ({
   className,
   isPlaceholder = false,
 }) => {
-  const percentage = Math.min(100, Math.round((amountSpent / budget) * 100));
+  const percentage =  Math.round((amountSpent / budget) * 100);
 
   const backgroundStyle = {
     backgroundImage: `linear-gradient(to top, #86B1B4 ${percentage}%, transparent ${percentage}%, transparent 100%)`,

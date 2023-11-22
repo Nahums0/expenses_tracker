@@ -6,7 +6,7 @@ from app.credit_card_adapters.max_fetcher import login_user
 from config.app import INVITE_KEY
 from app.helper import RegistrationForm, create_response, hash_password, verify_password
 from app.logger import log
-from flask_jwt_extended import create_access_token, jwt_required, get_jwt_identity
+from flask_jwt_extended import jwt_required, get_jwt_identity
 
 APP_NAME = "Users Controller"
 

@@ -3,10 +3,10 @@ import DashboardPage from "@/pages/DashboardPage/DashboardPage";
 import TransactionsPage from "@/pages/TransactionsPage/TransactionsPage";
 import useStore from "@/store/store";
 import RequireAuth from "@/components/Auth/RequireAuth";
-import SigninPage from "@/pages/SigninPage/SigninPage"
-import SignupPage from "@/pages/SignupPage/SignupPage"
-import SetupPage from "@/pages/SetupPage/SetupPage"
-import PendingTransactions from "@/pages/PendingTransactions/PendingTransactions"
+import SigninPage from "@/pages/SigninPage/SigninPage";
+import SignupPage from "@/pages/SignupPage/SignupPage";
+import SetupPage from "@/pages/SetupPage/SetupPage";
+import PendingTransactions from "@/pages/PendingTransactions/PendingTransactions";
 
 function App() {
   const reset = useStore((state) => state.reset);
@@ -16,15 +16,11 @@ function App() {
   const AuthenticatedSetupPage = RequireAuth(SetupPage, false, false);
   const AuthenticatedPendingPage = RequireAuth(PendingTransactions, true, false);
 
-
   return (
     <Router>
       <Routes>
         <Route path="/" element={<AuthenticatedDashboardPage />} />
-        <Route
-          path="/transactions"
-          element={<AuthenticatedTransactionsPage />}
-        />
+        <Route path="/transactions" element={<AuthenticatedTransactionsPage />} />
         <Route
           path="/reset"
           element={
@@ -40,20 +36,10 @@ function App() {
             </div>
           }
         />
-        <Route
-          path="/signin"
-          element={
-            <SigninPage/>
-          }
-        />
-        <Route
-          path="/signup"
-          element={
-            <SignupPage/>
-          }
-        />
-        <Route path="/setup" element={<AuthenticatedSetupPage/>} />
-        <Route path="/pending-transactions" element={<AuthenticatedPendingPage/>} />
+        <Route path="/signin" element={<SigninPage />} />
+        <Route path="/signup" element={<SignupPage />} />
+        <Route path="/setup" element={<AuthenticatedSetupPage />} />
+        <Route path="/pending-transactions" element={<AuthenticatedPendingPage />} />
       </Routes>
     </Router>
   );

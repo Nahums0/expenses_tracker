@@ -9,6 +9,7 @@ from app.api.helpers import (
     distribute_transactions_across_chunks,
     update_recurring_transaction_fields,
     validate_recurring_transaction,
+    validate_transaction,
 )
 from config.app import MAX_TRANSACTIONS_PER_REQUEST, TRANSACTIONS_CHUNK_SIZE
 import uuid
@@ -18,30 +19,8 @@ APP_NAME = "Transactions Controller"
 transactions_bp = Blueprint("transactions", __name__, url_prefix="/api/transactions")
 
 
-# Define the route for manually adding a transaction
-@transactions_bp.route("/add", methods=["POST"])
-@jwt_required()
-def add_transaction():
-    """
-    Add a new transaction.
-    """
-    # TODO: Implement transaction addition logic
-    pass
-
-
-# Define the route for manually deleting a transaction
-@transactions_bp.route("/delete", methods=["POST"])
-@jwt_required()
-def delete_transaction():
-    """
-    Delete an existing transaction.
-    """
-    # TODO: Implement transaction deletion logic
-    pass
-
-
 # Define the route for retrieving a user's transactions
-@transactions_bp.route("/list", methods=["GET"])
+@transactions_bp.route("/list-transactions", methods=["GET"])
 @jwt_required()
 def list_transactions():
     """
@@ -87,6 +66,84 @@ def list_transactions():
         return create_response("An error occurred while fetching transactions", 500)
 
 
+# Define the route for manually adding a transaction
+@transactions_bp.route("/add-transaction", methods=["POST"])
+@jwt_required()
+def add_transaction():
+    """
+    Add a new transaction.
+    """
+    # TODO: Implement transaction addition logic
+    pass
+
+
+# Define the route for manually deleting a transaction
+@transactions_bp.route("/delete-transaction", methods=["POST"])
+@jwt_required()
+def delete_transaction():
+    """
+    Delete an existing transaction.
+    """
+    # TODO: Implement transaction deletion logic
+    pass
+
+
+@transactions_bp.route("/update-transaction", methods=["PUT"])
+@jwt_required()
+def update_transaction():
+    """
+    Update an existing transaction.
+    """
+    email = get_jwt_identity()
+
+    try:
+        data = request.get_json()
+
+        # Validate request data
+        is_valid, error_message = validate_transaction(data)
+        if not is_valid:
+            return create_response(error_message, 400)
+
+        transaction_id = data.get("transactionId")
+        log(APP_NAME, "INFO", f"Updating transaction with id: {transaction_id} for email: {email}")
+
+        # Fetches the existing transaction object
+        transaction = Transaction.query.filter(Transaction.id == transaction_id).first()
+        if not transaction:
+            return create_response(f"Transaction with id {transaction_id} not found", 404)
+
+        # Check if the user is authorized to update the transaction
+        if transaction.userEmail != email:
+            return create_response("Unauthorized to update this transaction", 403)
+
+        # Validate category exists and owned by user
+        category_id = data.get("categoryId")
+        category = UserCategory.query.filter(and_(UserCategory.id == category_id, UserCategory.owner == email)).first()
+
+        if not category:
+            return create_response("Category not found or unauthorized", 404)
+        transaction.categoryId = category.id
+
+        # Update other fields
+        transaction.transactionAmount = float(data.get("transactionAmount", transaction.transactionAmount))
+        transaction.paymentDate = data.get("paymentDate", transaction.paymentDate)
+        transaction.purchaseDate = data.get("purchaseDate", transaction.purchaseDate)
+
+        # Update merchantData.name and merchantData.address, keeping other attributes intact
+        merchant_data = transaction.merchantData or {}
+        updated_merchant_data = data.get("merchantData", {})
+        merchant_data["name"] = updated_merchant_data.get("name", merchant_data.get("name"))
+        merchant_data["address"] = updated_merchant_data.get("address", merchant_data.get("address"))
+        transaction.merchantData = merchant_data
+
+        db.session.commit()
+
+        return create_response("Transaction updated successfully.", 200)
+    except Exception as e:
+        log(APP_NAME, "ERROR", f"Error updating transaction for email: {email}, error: {e}")
+        return create_response("An error occurred while updating the transaction", 500)
+
+
 @transactions_bp.route("/list-recurring-transactions", methods=["GET"])
 @jwt_required()
 def list_recurring_transactions():
@@ -118,6 +175,10 @@ def update_recurring_transaction():
         if validation_errors:
             return create_response("Object validation failed", 400, {"errors": validation_errors})
 
+        # Retrieves the ID of the transaction to be updated
+        recurring_transaction_id = updated_transaction["id"]
+        log(APP_NAME, "INFO", f"Updating recurring transaction with id: {recurring_transaction_id} for email: {email}")
+
         # Verify provided category exists and belongs to the user
         category = UserCategory.query.filter(
             and_(
@@ -129,9 +190,6 @@ def update_recurring_transaction():
         if not category:
             return create_response("Category not found", 404)
 
-        # Retrieves the ID of the transaction to be updated
-        recurring_transaction_id = updated_transaction["id"]
-
         # Fetches existing RecurringTransactions object
         recurring_transaction = RecurringTransactions.query.filter(
             RecurringTransactions.id == recurring_transaction_id
@@ -142,11 +200,12 @@ def update_recurring_transaction():
 
         # Updates fields of the recurring transaction with provided data
         update_recurring_transaction_fields(recurring_transaction, updated_transaction)
+        recurring_transaction.scannedAt = None
         db.session.commit()
 
         return create_response("Transaction updated successfully.", 200)
     except Exception as e:
-        log(APP_NAME, "ERROR", f"Error updating recurring transaction for email: {email}, error: {str(e)}")
+        log(APP_NAME, "ERROR", f"Error updating recurring transaction for email: {email}, error: {e}")
         return create_response("An error occurred while updating a recurring transaction", 500)
 
 
@@ -157,6 +216,7 @@ def create_recurring_transaction():
     Create a new recurring transaction.
     """
     email = get_jwt_identity()
+    log(APP_NAME, "INFO", f"Creating a new recurring transaction for email: {email}")
 
     try:
         new_transaction_data = request.get_json()
@@ -186,7 +246,7 @@ def create_recurring_transaction():
             id=new_transaction_id,
             arn="",
             userEmail=email,
-            categoryId=category.categoryId,
+            categoryId=category.id,
             transactionAmount=transaction_amount,
             isRecurring=True,
         )
@@ -194,7 +254,10 @@ def create_recurring_transaction():
 
         # Creates a new RecurringTransactions object
         new_recurring_transaction = RecurringTransactions(
-            userEmail=email, transactionId=new_transaction.id, scannedAt=None, transaction=new_transaction
+            userEmail=email,
+            transactionId=new_transaction.id,
+            scannedAt=None,
+            transaction=new_transaction,
         )
 
         # Updates fields of the recurring transaction with provided data
@@ -205,8 +268,38 @@ def create_recurring_transaction():
 
         return create_response("Transaction created successfully.", 200)
     except Exception as e:
-        log(APP_NAME, "ERROR", f"Error creating new recurring transaction for email: {email}, error: {str(e)}")
-        return create_response("An error occurred while creating a new recurring transaction", 500)
+        log(APP_NAME, "ERROR", f"Error creating new recurring transaction for email: {email}, error: {e}")
+        return create_response("An error occurred while creating a new recurring transaction", 500, {"errors": str(e)})
+
+
+@transactions_bp.route("/delete-recurring-transaction", methods=["DELETE"])
+@jwt_required()
+def delete_recurring_transaction():
+    """
+    Delete a recurring transaction.
+    """
+    email = get_jwt_identity()
+
+    try:
+        delete_transaction_data = request.get_json()
+        recurring_transaction_id = delete_transaction_data["id"]
+        log(APP_NAME, "INFO", f"Deleting recurring transaction with id: {recurring_transaction_id} for email: {email}")
+
+        # Fetches the RecurringTransactions object to be deleted
+        recurring_transaction = RecurringTransactions.query.filter(
+            and_(RecurringTransactions.id == recurring_transaction_id, RecurringTransactions.userEmail == email)
+        ).first()
+
+        if not recurring_transaction:
+            return create_response(f"Couldn't find recurring transaction with id of {recurring_transaction_id}", 404)
+
+        db.session.delete(recurring_transaction)
+        db.session.commit()
+
+        return create_response("Recurring transaction deleted successfully.", 200)
+    except Exception as e:
+        log(APP_NAME, "ERROR", f"Error deleting recurring transaction for email: {email}, error: {e}")
+        return create_response("An error occurred while deleting the recurring transaction", 500)
 
 
 # Define the route for forcing a fetch of transactions

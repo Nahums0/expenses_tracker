@@ -1,6 +1,6 @@
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import useStore from "@/store/store";
-import { useNavigate } from 'react-router-dom';
+import { useNavigate } from "react-router-dom";
 
 const SigninPage = () => {
   const [email, setEmail] = useState("");
@@ -9,6 +9,13 @@ const SigninPage = () => {
 
   const { user, setUser } = useStore();
   const navigate = useNavigate();
+
+  useEffect(() => {
+    const isAuthenticated = user != null;
+    if (isAuthenticated) {
+      navigate("/");
+    }
+  }, []);
 
   const handleSubmit = async (event) => {
     event.preventDefault();
@@ -34,20 +41,16 @@ const SigninPage = () => {
       }
     } catch (error) {
       setError("Network error or unexpected problem occurred.");
-      console.error(error)
+      console.error(error);
     }
   };
 
   return (
     <div className="min-h-screen flex flex-col items-center justify-center bg-bgColor">
-      <div className="mb-4 text-5xl text-main font-thin text-dashboard-text">
-        Expenses Tracker
-      </div>
+      <div className="mb-4 text-5xl text-main font-thin text-dashboard-text">Expenses Tracker</div>
       <div className="max-w-md w-full space-y-8">
         <div>
-          <h2 className="mt-6 text-center text-3xl font-extrabold text-dashboard-text">
-            Sign in to your account
-          </h2>
+          <h2 className="mt-6 text-center text-3xl font-extrabold text-dashboard-text">Sign in to your account</h2>
         </div>
         <form className="mt-8" onSubmit={handleSubmit}>
           <input
@@ -85,10 +88,7 @@ const SigninPage = () => {
         <div className="text-center">
           <p className="text-dashboard-text text-md">
             Don't have an account?
-            <a
-              href="/signup"
-              className="font-medium text-main hover:text-dashboard-text ml-1"
-            >
+            <a href="/signup" className="font-medium text-main hover:text-dashboard-text ml-1">
               Sign Up
             </a>
           </p>

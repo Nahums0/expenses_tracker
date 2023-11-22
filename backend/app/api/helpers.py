@@ -24,7 +24,7 @@ def get_user_object(email):
 
 
 def validate_recurring_transaction(transaction):
-    """Validate that a recurring transaction object contains the proper fields"""
+    """Validate recurring transaction object contains the proper fields"""
 
     def validate_date(date_str):
         """Validate date format YYYY-MM-DD"""
@@ -36,21 +36,17 @@ def validate_recurring_transaction(transaction):
 
     errors = {}
 
-    # Validate name
     if not transaction.get("name"):
         errors["name"] = "Name is required."
 
-    # Validate amount
     try:
         float(transaction.get("amount", 0))
     except ValueError:
         errors["amount"] = "Amount must be a number."
 
-    # Validate frequency unit
     if transaction.get("frequencyUnit") not in ["days", "weeks", "months"]:
         errors["frequencyUnit"] = "Frequency unit must be 'days', 'weeks', or 'months'."
 
-    # Validate frequency value
     try:
         frequency_value = int(transaction.get("frequencyValue", 0))
         if frequency_value <= 0:
@@ -58,16 +54,24 @@ def validate_recurring_transaction(transaction):
     except ValueError:
         errors["frequencyValue"] = "Frequency value must be an integer."
 
-    # Validate category
     if not transaction.get("categoryId"):
         errors["categoryId"] = "Category Id is required."
 
-    # Validate start date
     start_date = transaction.get("startDate")
     if not validate_date(start_date):
         errors["startDate"] = "Start date must be a valid date in YYYY-MM-DD format."
 
     return errors
+
+def validate_transaction(data):
+    """Validate transaction object contains the proper fields"""
+    
+    required_fields = ["transactionId", "categoryId", "transactionAmount", "paymentDate", "purchaseDate", "merchantData"]
+    missing_fields = [field for field in required_fields if field not in data]
+    if missing_fields:
+        return False, f"Missing fields: {', '.join(missing_fields)}"
+    
+    return True, ""
 
 
 def update_recurring_transaction_fields(recurring_transaction, updated_transaction):

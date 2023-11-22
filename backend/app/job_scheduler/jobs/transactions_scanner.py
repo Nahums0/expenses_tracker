@@ -4,6 +4,7 @@ from app.helper import add_failed_login_user_warning, fetch_users_for_scraping
 from app.logger import log
 from app.credit_card_adapters.max_fetcher import fetch_transactions_from_max
 from app.job_scheduler.jobs.monthly_spending_aggregator import aggregate_monthly_spending
+from app.job_scheduler.jobs.transactions_categorizer import categorize_all_transactions
 from config.app import DEEP_TRANSACTIONS_SCAN_DEPTH_IN_DAYS, SHALLOW_TRANSACTION_SCAN_DEPTH_IN_DAYS
 
 APP_NAME = "Transactions Scanner"
@@ -116,8 +117,14 @@ def scan_users_transactions(scheduler):
 
                 # Manually trigger monthly spending aggregator for changed users
                 affected_users = list(transactions_to_add.keys())
-                log(APP_NAME, "INFO", f"Triggering monthly spending aggregator for {len(affected_users)} users")
+                job_trigger_log_string = (
+                    f"Triggering monthly spending aggregator for {len(affected_users)}",
+                    "users and global transaction categorization",
+                )
+                log(APP_NAME, "INFO", job_trigger_log_string)
+
                 scheduler.scheduler.add_job(aggregate_monthly_spending, args=(scheduler, affected_users))
+                scheduler.scheduler.add_job(categorize_all_transactions, args=(scheduler,))
 
             log(APP_NAME, "INFO", "Finished transactions scan, triggering monthly spending aggregator")
 

@@ -32,7 +32,7 @@ scheduled_jobs = [
             "deep_scan": True,
         },
     },
-    # Optional non deep scan aggregate_monthly_spending configuration
+    # Optional non deep scan aggregate_monthly_spending configuration 
     #
     # {
     #     "name": "Monthly Spending Calculator",

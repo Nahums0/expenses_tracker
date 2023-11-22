@@ -15,7 +15,6 @@ export default async function fetchSpendingHistory(userToken) {
             console.error("HTTP Error:", response.status, response.statusText);
         } else {
             const data = await response.json();
-            console.log(data);
             spendingHistory = data.data;
         }
     } catch (error) {

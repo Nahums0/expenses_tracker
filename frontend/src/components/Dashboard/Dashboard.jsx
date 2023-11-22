@@ -14,8 +14,7 @@ export default function Dashboard() {
     async function fetchData() {
       setIsLoading(true);
       try {
-        // Start both fetch operations in parallel
-        await Promise.all([fetchAndSetCategories(user.accessToken), fetchAndSetSpendingHistory()]);
+        await Promise.all([fetchAndSetCategories(), fetchAndSetSpendingHistory()]);
       } catch (error) {
         console.error("Failed to fetch data", error);
       }
@@ -25,30 +24,68 @@ export default function Dashboard() {
     fetchData();
   }, []);
 
+  const _getTotalDaysInMonth = (date) => {
+    return new Date(date.getFullYear(), date.getMonth() + 1, 0).getDate();
+  };
+
+  const _calculateDailySurplus = () => {
+    const currentDate = new Date();
+    const monthDay = currentDate.getDate();
+    const totalDaysInMonth = _getTotalDaysInMonth(currentDate);
+    const dailyBudget = monthlyBudget / totalDaysInMonth;
+
+    return Math.round(monthDay * dailyBudget - monthlySpending);
+  };
+
+  const _calculateDailyAverage = () => {
+    const currentDate = new Date();
+    const monthDay = currentDate.getDate();
+    return Math.round(monthlySpending / monthDay);
+  };
+
+  const _calculateTargetDailyAverage = () =>{
+    const totalDaysInMonth = _getTotalDaysInMonth(new Date());
+    const targetDailyBudget = monthlyBudget / totalDaysInMonth;
+
+    return Math.round(targetDailyBudget);
+  }
+
   const currency = user.currency;
-  const monthlyBudget = numberWithCommas(user.monthlyBudget);
+  const monthlyBudget = user.monthlyBudget;
   const monthlySpending = categories ? categories.reduce((sum, item) => sum + item.monthlySpending, 0) : 0;
 
   return (
     <div className="flex flex-col h-screen w-full">
-      <h1 className="flex flex-col justify-center items-center h-28 w-72 shrink-0 text-[#0D4249] font-julius text-3xl normal-case font-normal leading-normal tracking-widest">
-        Dashboard
-      </h1>
-      <div className="flex flex-row gap-4 m-9 mt-0 mb-0">
-        <MonthlyMetricsCard title={"Monthly Spendings"} body={`${monthlySpending} / ${monthlyBudget}${currency}`} />
-        <MonthlyMetricsCard title={"Daily Average"} body={"125₪"} />
-        <MonthlyMetricsCard title={"Daily Surplus"} body={"560₪"} className={"hidden lg:block"} />
+      <div className="h-28">
+        <h1 className="flex flex-col justify-center items-center h-28 w-72 shrink-0 text-[#0D4249] font-julius text-3xl normal-case font-normal leading-normal tracking-widest">
+          Dashboard
+        </h1>
       </div>
-      <div className="flex flex-row m-9 mb-4 mt-4 gap-4 h-full">
-        <div className="w-2/3 flex flex-col gap-4">
-          <div className="flex flex-row gap-4 justify-between">
+      <div className="flex flex-row gap-3 ml-9 mr-9 h-32">
+        <MonthlyMetricsCard
+          title={"Monthly Spendings"}
+          body={`${monthlySpending} / ${numberWithCommas(monthlyBudget)}${currency}`}
+        />
+        <MonthlyMetricsCard
+          title={"Monthly Surplus"}
+          body={`${_calculateDailySurplus(monthlyBudget, monthlySpending)}₪`}
+        />
+        <MonthlyMetricsCard
+          title={"Daily Average"}
+          body={`${_calculateDailyAverage()}₪ / ${_calculateTargetDailyAverage()}₪`}
+          className={"hidden lg:flex"}
+        />
+      </div>
+      <div className="flex flex-row m-9 gap-4" style={{ height: " calc(100vh - 14rem - 4rem)" }}>
+        <div className="w-2/3 flex flex-col">
+          <div className="flex flex-row gap-4 justify-between h-[15rem] mb-4">
             <TopCategories isLoading={isLoading} categories={categories} />
           </div>
           <div className="w-full h-full">
             <Chart data={spendingHistory} />
           </div>
         </div>
-        <div className="w-1/3 ">
+        <div className="w-1/3 h-full">
           <LatestTransactions />
         </div>
       </div>

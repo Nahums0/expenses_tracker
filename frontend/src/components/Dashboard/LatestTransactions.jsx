@@ -27,13 +27,12 @@ const LatestTransactions = () => {
   }
 
   return (
-    <div className="bg-gray-50 h-5/6 overflow-scroll">
+    <div className="bg-gray-50 h-full overflow-scroll">
       <Card className="p-4 flex flex-col overflow-y-scroll">
         <h1 className="text-2xl text-center font-thin mb-2">Latest Transactions</h1>
         <hr className="bg-gray-100 w-full mb-4" />
         <div className="grid gap-2">
           {transactions.transactions[0].slice(0, 14).map((t) => {
-            console.log(t);
             const categorized = t.categoryName != null && t.categoryId != -1;
 
             return (
@@ -43,9 +42,9 @@ const LatestTransactions = () => {
                 </p>
                 <p className="text-gray-400 font-thin col-span-1 truncate">{formatDate(t.purchaseDate)}</p>
                 <p
-                  className={`font-light text-base col-span-1 ${
+                  className={`font-light text-base col-span-1  ${
                     t.transactionAmount < 0 ? "text-green-600 bg-green-200" : "text-red-400 bg-red-100"
-                  } rounded-md px-2 py-1 text-center w-min ml-auto mr-auto font-thin`}
+                  } rounded-md px-2 py-1 text-center w-20 ml-auto mr-auto font-thin`}
                 >
                   {Math.abs(t.transactionAmount).toFixed(2)}₪
                 </p>

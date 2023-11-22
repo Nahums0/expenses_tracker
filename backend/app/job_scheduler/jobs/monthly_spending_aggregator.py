@@ -1,4 +1,3 @@
-from sqlalchemy import and_
 from app.logger import log
 from app.database.models import Transaction, User, UserCategorySpending, db
 from datetime import datetime

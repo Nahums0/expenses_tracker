@@ -1,13 +1,14 @@
-import React, { useState, useEffect } from "react";
+import React, { useState } from "react";
 import TooltipLabel from "@/components/TooltipLabel/TooltipLabel";
 
-const EditTransactionModal = ({ categories, onSubmit, transaction }) => {
+const EditTransactionModal = ({ categories, onSubmit, transaction, onDelete }) => {
   const [formData, setFormData] = useState({
+    id: transaction.id,
     name: transaction.transactionName,
     amount: transaction.transaction.transactionAmount,
     frequencyUnit: transaction.frequencyUnit,
     frequencyValue: transaction.frequencyValue,
-    category: transaction.transaction.categoryName,
+    categoryId: transaction.transaction.categoryId,
     startDate: transaction.startDate.split("T")[0],
   });
   const [errorMessages, setErrorMessages] = useState({
@@ -15,6 +16,7 @@ const EditTransactionModal = ({ categories, onSubmit, transaction }) => {
     amount: "",
     frequencyValue: "",
     startDate: "",
+    server: "",
   });
 
   const validateInput = () => {
@@ -54,7 +56,7 @@ const EditTransactionModal = ({ categories, onSubmit, transaction }) => {
   const handleSubmit = (e) => {
     e.preventDefault();
     if (validateInput()) {
-      onSubmit(formData);
+      onSubmit(formData, setErrorMessages);
     }
   };
 
@@ -78,10 +80,13 @@ const EditTransactionModal = ({ categories, onSubmit, transaction }) => {
     </>
   );
 
+  const buttonClass =
+    "w-full py-2 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white focus:outline-none focus:ring-2 focus:ring-offset-2";
+
   return (
     <form className="space-y-4" onSubmit={handleSubmit}>
-      {renderInputField("Name", "name", "text", "Label this transaction...")}
-      {renderInputField("Amount", "amount", "number", "Set the amount...")}
+      {renderInputField("Name", "name", "text", "Label the transaction")}
+      {renderInputField("Amount", "amount", "number", "Set the amount")}
       <div>
         <TooltipLabel
           label="Frequency"
@@ -129,16 +134,16 @@ const EditTransactionModal = ({ categories, onSubmit, transaction }) => {
           tooltipText="Classify this transaction into a relevant category"
         />
         <select
-          name="category"
-          id="category"
+          name="categoryId"
+          id="categoryId"
           required
           className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500"
-          value={formData.category}
+          value={categories.find((c) => c.categoryId == formData.categoryId)}
           onChange={handleInputChange}
         >
           {categories.map((category) => (
-            <option key={category} value={category}>
-              {category}
+            <option key={category.id} value={category.id}>
+              {category.categoryName}
             </option>
           ))}
         </select>
@@ -150,11 +155,22 @@ const EditTransactionModal = ({ categories, onSubmit, transaction }) => {
         "date",
         "Set the initial date for the recurring transaction's first occurrence"
       )}
+      {errorMessages.server && (
+        <div className="error-message text-red-500">
+          Internal server error:{" "}
+          {typeof errorMessages.server.errors === "string"
+            ? errorMessages.server.errors
+            : Object.values(errorMessages.server.errors).join(" ")}
+        </div>
+      )}
 
       <button
-        type="submit"
-        className="w-full py-2 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-green-600 hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500"
+        onClick={() => onDelete(transaction, setErrorMessages)}
+        className={`${buttonClass} bg-red-600 hover:bg-red-400 focus:ring-red-500`}
       >
+        Delete
+      </button>
+      <button type="submit" className={`${buttonClass} bg-green-600 hover:bg-green-400 focus:ring-green-500`}>
         Update
       </button>
     </form>

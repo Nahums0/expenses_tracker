@@ -7,7 +7,7 @@ const initialFormData = {
   amount: "",
   frequencyUnit: "days",
   frequencyValue: 1,
-  category: "",
+  categoryId: "",
   startDate: getFirstOfNearestMonth("yyyy-mm-dd"),
 };
 
@@ -16,10 +16,14 @@ const initialErrorMessages = {
   amount: "",
   frequencyValue: "",
   startDate: "",
+  server: "",
 };
 
 const NewRecurringTransaction = ({ categories, onSubmit }) => {
-  const [formData, setFormData] = useState({ ...initialFormData, category: categories[0] });
+  const [formData, setFormData] = useState({
+    ...initialFormData,
+    categoryId: categories ? categories[0].id : 0,
+  });
   const [errorMessages, setErrorMessages] = useState(initialErrorMessages);
 
   const validateInput = () => {
@@ -53,14 +57,13 @@ const NewRecurringTransaction = ({ categories, onSubmit }) => {
     }
 
     setErrorMessages(errors);
-    console.log(errors);
     return isValid;
   };
 
   const handleSubmit = (e) => {
     e.preventDefault();
     if (validateInput()) {
-      onSubmit(formData);
+      onSubmit(formData, setErrorMessages);
     }
   };
   const handleInputChange = (e) => {
@@ -84,15 +87,9 @@ const NewRecurringTransaction = ({ categories, onSubmit }) => {
   );
 
   return (
-    <form
-      className="space-y-4"
-      onSubmit={(e) => {
-        e.preventDefault();
-        if (validateInput()) onSubmit(formData);
-      }}
-    >
-      {renderInputField("Name", "name", "text", "Label this transaction...")}
-      {renderInputField("Amount", "amount", "number", "Set the amount...")}
+    <form className="space-y-4" onSubmit={handleSubmit}>
+      {renderInputField("Name", "name", "text", "Label this transaction")}
+      {renderInputField("Amount", "amount", "number", "Set the amount")}
       <div>
         <TooltipLabel
           label="Frequency"
@@ -140,16 +137,16 @@ const NewRecurringTransaction = ({ categories, onSubmit }) => {
           tooltipText="Classify this transaction into a relevant category"
         />
         <select
-          name="category"
-          id="category"
+          name="categoryId"
+          id="categoryId"
           required
           className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500"
-          value={formData.category}
+          value={formData.categoryId}
           onChange={handleInputChange}
         >
           {categories.map((category) => (
-            <option key={category} value={category}>
-              {category}
+            <option key={category.id} value={category.id}>
+              {category.categoryName}
             </option>
           ))}
         </select>
@@ -160,6 +157,14 @@ const NewRecurringTransaction = ({ categories, onSubmit }) => {
         "startDate",
         "date",
         "Set the initial date for the recurring transaction's first occurrence"
+      )}
+      {errorMessages.server && (
+        <div className="error-message text-red-500">
+          Internal server error:
+          {typeof errorMessages.server.errors === "string"
+            ? errorMessages.server.errors
+            : Object.values(errorMessages.server.errors).join(" ")}
+        </div>
       )}
       <button
         type="submit"

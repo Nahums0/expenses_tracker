@@ -1,5 +1,4 @@
 export default async function fetchRecurringTransactions(userToken) {
-  console.log("Fetching recurring transactions...", userToken);
   let transactions = null;
 
   try {

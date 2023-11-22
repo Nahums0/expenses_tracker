@@ -3,14 +3,20 @@ import Chart from "react-apexcharts";
 
 const SpendingChart = ({ data }) => {
   // Transform data keys to Date objects and values to the required format
-  const chartData = Object.entries(data).map(([key, value]) => {
-    const year = key.substring(0, 4);
-    const month = key.substring(4) - 1;
-    const date = new Date(year, month).getTime();
-    return [date, value];
-  });
 
-  chartData.sort((a, b) => a[0] - b[0]);
+  const getDataWithLabels = () => {
+    if (!data) {
+      return [];
+    }
+    let chartData = Object.entries(data).map(([key, value]) => {
+      const year = key.substring(0, 4);
+      const month = key.substring(4) - 1;
+      const date = new Date(year, month).getTime();
+      return [date, value];
+    });
+    chartData.sort((a, b) => a[0] - b[0]);
+    return chartData;
+  };
 
   const chartOptions = {
     colors: ["#86b1b4"],
@@ -54,13 +60,19 @@ const SpendingChart = ({ data }) => {
   const series = [
     {
       name: "Monthly Spending",
-      data: chartData,
+      data: getDataWithLabels(),
     },
   ];
 
   return (
     <div className="chart bg-white rounded shadow-md h-full">
-      <Chart options={chartOptions} series={series} type="area" height="100%" />
+      {data ? (
+        <Chart options={chartOptions} series={series} type="area" height="100%" />
+      ) : (
+        <div className="flex  h-full">
+        <h1 className="m-auto text-6xl font-thin text-gray-400">Loading...</h1>
+      </div>
+      )}
     </div>
   );
 };
