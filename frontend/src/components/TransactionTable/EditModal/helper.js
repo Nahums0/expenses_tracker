@@ -4,7 +4,7 @@ export const useFetchCategories = (fetchAndSetCategories, setErrorMessage) => {
   useEffect(() => {
     async function fetchData() {
       try {
-        await fetchAndSetCategories();
+        await fetchAndSetCategories(true);
       } catch (error) {
         console.error("Failed to fetch data", error);
         setErrorMessage("Failed to fetch categories.");
@@ -16,7 +16,6 @@ export const useFetchCategories = (fetchAndSetCategories, setErrorMessage) => {
 };
 
 export const prepareTransationsDataForPost = (transactionId, transaction, categories) => {
-  console.log(transaction.categoryName);
   let transformed = {
     transactionId,
     categoryId: categories.find((c) => c.categoryName == transaction.categoryName.value).id,
@@ -44,14 +43,14 @@ export const getEditableTransaction = (transaction, categories) => {
   return {
     transactionAmount: {
       label: "Amount",
-      value: Math.abs(transaction.transactionAmount).toFixed(2),
-      color: "green",
-      editable: true,
+      value: !transaction.isPending ? Math.abs(transaction.transactionAmount).toFixed(2) : "Waiting Authorization",
+      color: !transaction.isPending ? "green" : "",
+      editable: !transaction.isPending,
       type: "text",
     },
     arn: {
       label: "ARN",
-      value: transaction.arn,
+      value: !transaction.isPending ? transaction.arn : "Waiting Authorization",
       editable: false,
       type: "text",
     },
@@ -70,8 +69,8 @@ export const getEditableTransaction = (transaction, categories) => {
     },
     paymentDate: {
       label: "Approved At",
-      value: transaction.paymentDate,
-      editable: true,
+      value: !transaction.isPending ? transaction.paymentDate : "Waiting Authorization",
+      editable: !transaction.isPending,
       type: "date",
     },
     shortCardNumber: {

@@ -26,7 +26,7 @@ export const initialState = {
 
 // Common functions
 const fetchAndSetData =
-  (fetchFunction, set, dataKey, accessToken, currentData, useCache = true) =>
+  (fetchFunction, set, dataKey, accessToken, currentData, useCache) =>
   async (...args) => {
     // If current state exists and was fetched more less than refetchThreshold seconds ago, don't refetch
     if (useCache && currentData && !_shouldRefetch(currentData.fetchTimestamp, refetchThreshold)) {
@@ -43,17 +43,17 @@ const _shouldRefetch = (lastFetch, thresholdSeconds) => {
 };
 
 // Fetch functions
-export const fetchAndSetTransactions = (set) => (index, length, accessToken, currentTransactions) =>
-  fetchAndSetData(fetchTransactions, set, "transactions", accessToken, currentTransactions, false)(index, length);
+export const fetchAndSetTransactions = (set) => (index, length, accessToken, currentTransactions, useCache) =>
+  fetchAndSetData(fetchTransactions, set, "transactions", accessToken, currentTransactions, useCache)(index, length);
 
-export const fetchAndSetCategories = (set, accessToken, currentCategories) =>
-  fetchAndSetData(fetchCategories, set, "categories", accessToken, currentCategories, true);
+export const fetchAndSetCategories = (set, accessToken, currentCategories, useCache) =>
+  fetchAndSetData(fetchCategories, set, "categories", accessToken, currentCategories, useCache);
 
-export const fetchAndSetRecurringTransactions = (set, accessToken, recurringTransactions) =>
-  fetchAndSetData(fetchRecurringTransactions, set, "recurringTransactions", accessToken, recurringTransactions);
+export const fetchAndSetRecurringTransactions = (set, accessToken, recurringTransactions, useCache) =>
+  fetchAndSetData(fetchRecurringTransactions, set, "recurringTransactions", accessToken, recurringTransactions, useCache);
 
-export const fetchAndSetSpendingHistory = (set, accessToken, currentSpendingHistory) =>
-  fetchAndSetData(fetchSpendingHistory, set, "spendingHistory", accessToken, currentSpendingHistory, true);
+export const fetchAndSetSpendingHistory = (set, accessToken, currentSpendingHistory, useCache) =>
+  fetchAndSetData(fetchSpendingHistory, set, "spendingHistory", accessToken, currentSpendingHistory, useCache);
 
 // Set functions
 export const setSetupMonthlyBudget = (set) => (budget) => {

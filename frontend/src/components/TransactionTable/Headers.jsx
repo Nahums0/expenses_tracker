@@ -1,7 +1,7 @@
 import React from "react";
 
 function Headers() {
-  const columns =  ["Date", "Amount", "Category", "Store", "Original Charge", "Action"]
+  const columns =  ["Date", "Amount", "Category", "Store", "Status", "Action"]
 
   return (
     <thead className="text-xs text-gray-700 uppercase bg-gray-50">

@@ -1,7 +1,7 @@
-import datetime
 from flask import Blueprint, request
 from flask_jwt_extended import get_jwt_identity, jwt_required
 from sqlalchemy import and_
+from sqlalchemy.orm.attributes import flag_modified
 from app.database.models import RecurringTransactions, Transaction, UserCategory, UserCategorySpending, db
 from app.helper import create_response
 from app.logger import log
@@ -35,10 +35,10 @@ def list_transactions():
 
     try:
         # Count the total number of transactions owned by the user
-        total_transactions_count = Transaction.query.filter_by(userEmail=email, isRecurring=False).count()
+        total_transactions_count = Transaction.query.filter_by(userEmail=email, isRecurring=False, isDeleted=False).count()
 
         # Fetch transaction belonging to the user
-        transactions_query = Transaction.query.filter_by(userEmail=email, isRecurring=False).order_by(
+        transactions_query = Transaction.query.filter_by(userEmail=email, isRecurring=False, isDeleted=False).order_by(
             Transaction.purchaseDate.desc()
         )
         transactions = transactions_query.offset(start_index).limit(num_transactions).all()
@@ -77,15 +77,38 @@ def add_transaction():
     pass
 
 
-# Define the route for manually deleting a transaction
-@transactions_bp.route("/delete-transaction", methods=["POST"])
+@transactions_bp.route("/delete-transaction", methods=["DELETE"])
 @jwt_required()
 def delete_transaction():
     """
     Delete an existing transaction.
     """
-    # TODO: Implement transaction deletion logic
-    pass
+    
+    email = get_jwt_identity()
+    log(APP_NAME, "INFO", f"Deleting transaction for email: {email}")
+
+    try:
+        data = request.get_json()
+        transaction_id = data.get("transactionId")
+        if not transaction_id:
+            return create_response("Transaction ID is required", 400)
+
+        # Fetches the existing transaction object
+        transaction = Transaction.query.filter(Transaction.id == transaction_id).first()
+        if not transaction:
+            return create_response(f"Transaction with id {transaction_id} not found", 404)
+
+        # Check if the user is authorized to delete the transaction
+        if transaction.userEmail != email:
+            return create_response("Unauthorized to delete this transaction", 403)
+
+        transaction.isDeleted = True
+        db.session.commit()
+
+        return create_response("Transaction deleted successfully.", 200)
+    except Exception as e:
+        log(APP_NAME, "ERROR", f"Error deleting transaction for email: {email}, error: {e}")
+        return create_response("An error occurred while deleting the transaction", 500)
 
 
 @transactions_bp.route("/update-transaction", methods=["PUT"])
@@ -94,6 +117,7 @@ def update_transaction():
     """
     Update an existing transaction.
     """
+    
     email = get_jwt_identity()
 
     try:
@@ -135,6 +159,7 @@ def update_transaction():
         merchant_data["name"] = updated_merchant_data.get("name", merchant_data.get("name"))
         merchant_data["address"] = updated_merchant_data.get("address", merchant_data.get("address"))
         transaction.merchantData = merchant_data
+        flag_modified(transaction, 'merchantData')
 
         db.session.commit()
 

@@ -1,14 +1,10 @@
-import React, { useState, useEffect } from "react";
+import React, { useEffect } from "react";
 import CategoryCard from "./CategoryCard";
 import Card from "@/components/Dashboard/Card";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import { faPlus } from "@fortawesome/free-solid-svg-icons";
 
-export default function CategoryGrid({
-  monthlyBudget,
-  categories,
-  setCategories,
-}) {
+export default function CategoryGrid({ monthlyBudget, categories, setCategories }) {
   useEffect(() => {
     const fetchCategories = async () => {
       try {
@@ -20,7 +16,7 @@ export default function CategoryGrid({
         });
 
         const data = await response.json();
-        console.log(data)
+        console.log(data);
         if (!response.ok) {
           setErrorMessage(response.statusText || "An error occurred");
         } else {
@@ -60,47 +56,61 @@ export default function CategoryGrid({
 
   const handleBudgetSliderChange = (changedIndex, event) => {
     const newPercentage = parseFloat(event.target.value);
-    // This is the total of percentages not including the one that has changed.
-    const totalPercentage = categories.reduce(
-      (acc, curr, index) => acc + (index !== changedIndex ? curr.budget : 0),
+
+    let updatedCategories = [...categories];
+    updatedCategories[changedIndex] = {
+      ...updatedCategories[changedIndex],
+      budget: newPercentage,
+      locked: true,
+    };
+
+    const totalUnlockedPercentage = updatedCategories.reduce(
+      (acc, curr, index) => acc + (index !== changedIndex && !curr.locked ? curr.budget : 0),
       0
     );
 
-    var currentCategories = categories;
-    if (totalPercentage === 0) {
-      // If totalPercentage is 0, we distribute the remaining percentage equally.
-      const remainingPercentage =
-        (100 - newPercentage) / (currentCategories.length - 1);
-      currentCategories = currentCategories.map((category, index) => {
-        if (index === changedIndex) {
-          return { ...category, budget: newPercentage };
+    const remainingPercentage =
+      100 - updatedCategories.reduce((acc, curr) => acc + (curr.locked ? curr.budget : 0), 0);
+
+    // Minimum allocation for unlocked categories
+    const minAllocation = remainingPercentage > 0 ? 0.1 : 0;
+    let totalAllocated = 0;
+
+    updatedCategories = updatedCategories.map((category, index) => {
+      if (index === changedIndex || category.locked) {
+        return category;
+      } else {
+        let adjustedBudget;
+        if (totalUnlockedPercentage === 0) {
+          // Allocate a minimum budget to unlocked categories if total unlocked percentage is zero
+          adjustedBudget = minAllocation;
         } else {
-          return { ...category, budget: remainingPercentage };
+          adjustedBudget = (category.budget / totalUnlockedPercentage) * remainingPercentage;
         }
-      });
-    } else {
-      // Calculate the factor to apply to other categories to adjust their budgets.
-      const adjustFactor = (100 - newPercentage) / totalPercentage;
-      currentCategories = currentCategories.map((category, index) => {
-        if (index === changedIndex) {
-          // The changed slider simply gets the new percentage.
-          return { ...category, budget: newPercentage };
-        } else {
-          // Other sliders have their percentages adjusted.
-          const adjustedBudget = category.budget * adjustFactor;
-          return { ...category, budget: adjustedBudget };
+        if (adjustedBudget < 0) {
+          adjustedBudget = 0;
         }
-      });
+        totalAllocated += adjustedBudget;
+        return {
+          ...category,
+          budget: adjustedBudget,
+        };
+      }
+    });
+
+    // Adjust for any rounding errors
+    if (totalAllocated < remainingPercentage) {
+      const difference = remainingPercentage - totalAllocated;
+      updatedCategories.find((category) => !category.locked && category.budget > 0).budget += difference;
     }
-    setCategories(currentCategories);
+
+    setCategories(updatedCategories);
   };
 
   return (
     <div className="grid w-11/12 mt-8 mb-5 gap-4 lg:grid-cols-4 m-auto md:grid-cols-3 sm:grid-cols-2 overflow-scroll">
       {categories == null ? (
-        <h1 className="text-5xl w-full text-center font-thin">
-          Loading Categories...
-        </h1>
+        <h1 className="text-5xl w-full text-center font-thin">Loading Categories...</h1>
       ) : (
         <>
           {categories.map((category, index) => {
@@ -127,6 +137,11 @@ export default function CategoryGrid({
           >
             <FontAwesomeIcon icon={faPlus} className="fa-4x" />
           </Card>
+          {Math.floor(categories.reduce((total, category) => total + category.budget, 0)) > 100 && (
+            <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 fixed z-50 bottom-20 ">
+              <p className="text-center">Budget is higher than 100%</p>
+            </div>
+          )}
         </>
       )}
     </div>

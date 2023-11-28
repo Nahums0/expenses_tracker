@@ -97,19 +97,21 @@ class Transaction(db.Model):
     __tablename__ = "transaction"
 
     id = Column(String, primary_key=True, nullable=False)
-    arn = Column(String(255), nullable=False)
+    uid = Column(String, nullable=True)
+    arn = Column(String(255), nullable=True)
     userEmail = Column(String(255), ForeignKey("user.email"))
     categoryId = Column(Integer, ForeignKey("userCategory.id"), nullable=False, default=-1)
 
     transactionAmount = Column(Float)
-    paymentDate = Column(DateTime)
     purchaseDate = Column(DateTime)
+    paymentDate = Column(DateTime)
     shortCardNumber = Column(String(4))
     merchantData = Column(JSON)
     originalCurrency = Column(String(3))
     originalAmount = Column(Float)
     isRecurring = Column(Boolean, default=False)
     isDeleted = Column(Boolean, default=False)
+    isPending = Column(Boolean, default=False) 
 
     user = relationship("User")
     recurring_transaction = relationship("RecurringTransactions", back_populates="transaction", uselist=False)
@@ -122,6 +124,7 @@ class Transaction(db.Model):
         data = {
             "id": self.id,
             "arn": self.arn,
+            "uid": self.uid,
             "userEmail": self.userEmail,
             "categoryId": self.categoryId,
             "transactionAmount": self.transactionAmount,
@@ -133,12 +136,33 @@ class Transaction(db.Model):
             "originalAmount": self.originalAmount,
             "isRecurring": self.isRecurring,
             "isDeleted": self.isDeleted,
+            "isPending": self.isPending,
         }
 
         if include_category_name:
             data["categoryName"] = self.category.categoryName if self.category else None
 
         return data
+    
+
+    def update_with_new_values(self, new_transaction):
+        """
+        Update the existing transaction with values from a new transaction.
+        """
+        self.arn = new_transaction.arn
+        self.uid = new_transaction.uid
+        self.categoryId = new_transaction.categoryId
+        self.transactionAmount = new_transaction.transactionAmount
+        self.purchaseDate = new_transaction.purchaseDate
+        self.paymentDate = new_transaction.paymentDate
+        self.shortCardNumber = new_transaction.shortCardNumber
+        self.merchantData = new_transaction.merchantData
+        self.originalCurrency = new_transaction.originalCurrency
+        self.originalAmount = new_transaction.originalAmount
+        self.isRecurring = new_transaction.isRecurring
+        self.isDeleted = new_transaction.isDeleted
+        self.isPending = new_transaction.isPending
+
 
 
 class UserParsedCategory(db.Model):

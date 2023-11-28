@@ -81,8 +81,35 @@ function TransactionsTable() {
         setError({ server: data.data ? data.data : { errors: data.message } });
       } else {
         fetchTransactions();
-        handleCloseModal();
+        setEditing(false);
         console.log(data);
+      }
+    } catch (error) {
+      console.error(error);
+      setError({ server: "Network error or unexpected problem occurred." });
+    }
+  };
+
+  const transactionDeleteHandler = async (transactionId, setError) => {
+    try {
+      const response = await fetch("/api/transactions/delete-transaction", {
+        method: "DELETE",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${user.accessToken}`,
+        },
+        body: JSON.stringify({
+          "transactionId": transactionId
+        }),
+      });
+      const data = await response.json();
+
+      if (!response.ok || response.status != 200) {
+        console.error("Error creating new recurring transaction:", data.message, data.data);
+        setError({ server: data.data ? data.data : { errors: data.message } });
+      } else {
+        fetchTransactions();
+        handleCloseModal();
       }
     } catch (error) {
       console.error(error);
@@ -124,7 +151,12 @@ function TransactionsTable() {
         </>
       )}
       {showModal && (
-        <EditModal onClose={handleCloseModal} transaction={currentTransaction} onSave={editTransactionHandler} />
+        <EditModal
+          onClose={handleCloseModal}
+          transaction={currentTransaction}
+          onUpdate={editTransactionHandler}
+          onDelete={transactionDeleteHandler}
+        />
       )}
     </div>
   );

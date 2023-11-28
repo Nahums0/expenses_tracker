@@ -1,42 +1,57 @@
-import React, { useState, useCallback } from "react";
+import React from "react";
 import useStore from "@/store/store";
 
 const formatDate = (date) => {
-  if (!date) return "";
-  return typeof date === "string" ? date.split("T")[0] : date.toISOString().split("T")[0];
+  return date ? (typeof date === "string" ? date.split("T")[0] : date.toISOString().split("T")[0]) : "";
+};
+
+const formatAmount = (transaction, currency) => {
+  let amount = transaction.transactionAmount;
+  let isPending = transaction.isPending;
+
+  return isPending
+    ? `${transaction.originalAmount} ${transaction.originalCurrency}`
+    : `${Math.abs(amount).toFixed(2)}${currency}`;
+};
+
+const formatStatus = (isPending) => {
+  return <p className={`text-gray-400 ${!isPending && "text-gray-700"}`}>{isPending ? "Pre-Authorized" : "Authorized"}</p>;
+};
+
+const calculateAmountClass = (transaction) => {
+  let isRefund = transaction.transactionAmount < 0;
+
+  return `px-6 py-4 ${isRefund ? "text-green-500" : "text-red-500" } font-medium text-left truncate`;
+};
+
+const isCategorized = (transaction) => {
+  return transaction.categoryName != null && transaction.categoryId !== -1;
 };
 
 const TransactionRow = ({ transaction, onEditClick }) => {
   const { user } = useStore();
 
   const dateString = formatDate(transaction.purchaseDate);
-  const isRefund = transaction.transactionAmount < 0;
-  const transactionAmount = Math.abs(transaction.transactionAmount);
-  const transactionAmountString = transactionAmount.toFixed(2);
-  const amountClass = `px-6 py-4 ${isRefund ? "text-green-500" : "text-red-500"} font-bold text-left truncate`;
-  const categorized = transaction.categoryName != null && transaction.categoryId != -1;
+  const transactionAmountString = formatAmount(transaction, user.currency);
+  const amountClass = calculateAmountClass(transaction);
+  const categorized = isCategorized(transaction);
 
   return (
-    <>
-      <tr className="bg-white border-b">
-        <td className="px-6 py-4 text-gray-500 text-left truncate">{dateString}</td>
-        <td className={amountClass}>
-          {transactionAmountString}
-          {user.currency}
-        </td>
-        <td className={`px-6 py-4 text-xl font-light text-left truncate ${!categorized && " text-gray-400"}`}>
-          {categorized ? transaction.categoryName : "Pending"}
-        </td>
-        <td className="px-6 py-4 text-gray-700 text-left truncate">{transaction.merchantData.name}</td>
-        <td className="px-6 py-4 text-left truncate">{`${transaction.originalAmount} ${transaction.originalCurrency}`}</td>
-        <td
-          className="px-6 py-4 text-left truncate font-medium text-blue-600 hover:cursor-pointer"
-          onClick={() => onEditClick(transaction)}
-        >
-          EDIT
-        </td>
-      </tr>
-    </>
+    <tr className="bg-white border-b">
+      <td className="px-6 py-4 text-gray-500 text-left truncate">{dateString}</td>
+      <td className={amountClass}>{transactionAmountString}</td>
+      <td className={`px-6 py-4 text-xl font-light text-left truncate ${!categorized && "text-gray-400"}`}>
+        {categorized ? transaction.categoryName : "Pending"}
+      </td>
+      <td className="px-6 py-4 text-gray-700 text-left truncate">{transaction.merchantData.name}</td>
+      <td className="px-6 py-4 text-left truncate">{formatStatus(transaction.isPending)}</td>
+      <td
+        className="px-6 py-4 text-left truncate font-medium text-blue-500 hover:cursor-pointer"
+        onClick={() => onEditClick(transaction)}
+      >
+        View
+      </td>
+    </tr>
   );
 };
 

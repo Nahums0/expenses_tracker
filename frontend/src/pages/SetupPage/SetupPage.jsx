@@ -21,21 +21,19 @@ export default function SetupPage() {
     setSetupCreditCardCredentials,
     setSetupErrorMessage,
   } = useStore();
-  const {
-    monthlyBudget,
-    errorMessage,
-    stepIndex,
-    categories,
-    fullName,
-    currency,
-    creditCardCredentials,
-  } = initialSetupData;
+  const { monthlyBudget, errorMessage, stepIndex, categories, fullName, currency, creditCardCredentials } =
+    initialSetupData;
 
   const navigate = useNavigate();
 
   const submitHandler = async () => {
     var parsedBudget = parseInt(monthlyBudget);
-    var filteredCategories = categories.filter((c) => c.budget > 0);
+    var filteredCategories = categories
+      .filter((c) => c.budget > 0)
+      .map((c) => {
+        c.budget *= parsedBudget / 100;
+        return c;
+      });
     var formatttedFullname = fullName
       .split(" ")
       .map((s) => s[0].toUpperCase() + s.substr(1))
@@ -76,6 +74,10 @@ export default function SetupPage() {
   };
 
   const handleNextClick = () => {
+    if (stepIndex == 2 && Math.floor(categories.reduce((total, category) => total + category.budget, 0)) > 100) {
+      alert("Budget can't be over 100%");
+      return;
+    }
     if (stepIndex < stepperConfig.length) {
       setSetupStepIndex(stepIndex + 1);
     } else {
@@ -114,26 +116,17 @@ export default function SetupPage() {
   return (
     <div className="bg-bgColor w-full h-screen overflow-scroll">
       <div className="h-9/10 overflow-scroll">
-        <h1 className="text-4xl text-main font-thin text-center pt-8 pb-8">
-          Welcome to Expenses Tracker
-        </h1>
+        <h1 className="text-4xl text-main font-thin text-center pt-8 pb-8">Welcome to Expenses Tracker</h1>
         <div className="w-full">
           <Stepper steps={stepperConfig} currentStep={stepIndex} />
         </div>
 
         {stepIndex === 1 && (
-          <MonthlyBudgetForm
-            monthlyBudget={initialSetupData.monthlyBudget}
-            setMonthlyBudget={setSetupMonthlyBudget}
-          />
+          <MonthlyBudgetForm monthlyBudget={initialSetupData.monthlyBudget} setMonthlyBudget={setSetupMonthlyBudget} />
         )}
 
         {stepIndex === 2 && (
-          <CategoryGrid
-            monthlyBudget={monthlyBudget}
-            categories={categories}
-            setCategories={setSetupCategories}
-          />
+          <CategoryGrid monthlyBudget={monthlyBudget} categories={categories} setCategories={setSetupCategories} />
         )}
 
         {stepIndex === 3 && (

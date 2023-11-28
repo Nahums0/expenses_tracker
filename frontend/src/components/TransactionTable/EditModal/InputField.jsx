@@ -3,9 +3,13 @@ import React from "react";
 function InputField({ type, value, onChange, fieldData }) {
   if (type === "select") {
     return (
-      <select className="w-full select-none rounded-none appearance-none bg-transparent border-none focus:outline-none">
+      <select
+        value={value}
+        className="w-full select-none rounded-none appearance-none bg-transparent border-none focus:outline-none"
+        onChange={onChange}
+      >
         {fieldData.map((item) => (
-          <option key={item.id} value={item.id}>
+          <option key={item.id} value={item.categoryName}>
             {item.categoryName}
           </option>
         ))}
@@ -13,7 +17,7 @@ function InputField({ type, value, onChange, fieldData }) {
     );
   }
 
-  if (type === "date") {
+  if (type === "date" && value) {
     value = value.split("T")[0];
   }
 

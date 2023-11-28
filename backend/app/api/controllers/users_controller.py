@@ -1,7 +1,15 @@
 # Import necessary Flask modules and other dependencies
 from flask import Blueprint, request
-from app.database.models import Transaction, User, AppUserCredentials, UserCategorySpending, UserParsedCategory, UserCategory, db
-from app.api.helpers import get_user_object
+from app.database.models import (
+    Transaction,
+    User,
+    AppUserCredentials,
+    UserCategorySpending,
+    UserParsedCategory,
+    UserCategory,
+    db,
+)
+from app.api.helpers import get_user_object, trigger_user_initial_setup_jobs
 from app.credit_card_adapters.max_fetcher import login_user
 from config.app import INVITE_KEY
 from app.helper import RegistrationForm, create_response, hash_password, verify_password
@@ -184,16 +192,16 @@ def setup_user():
         user_categories = []
         for category in categories:
             user_categories.append(
-                UserCategory(
-                    owner=email,
-                    monthlyBudget=category["budget"],
-                    categoryName=category["categoryName"]
-                )
+                UserCategory(owner=email, monthlyBudget=category["budget"], categoryName=category["categoryName"])
             )
 
         user.initialSetupDone = True
         db.session.add_all(user_categories)
         db.session.commit()
+
+        # Trigger scan_users_transactions job
+        log(APP_NAME, "INFO", f"Triggering initial data setup jobs for email: {email}")
+        trigger_user_initial_setup_jobs(email)
 
         log(APP_NAME, "INFO", f"User setup finished successfully for email: {email}")
         return create_response("User setup successful", 200, {"user": get_user_object(email)})

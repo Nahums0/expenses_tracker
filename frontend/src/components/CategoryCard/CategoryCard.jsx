@@ -29,7 +29,7 @@ const CategoryCard = ({
             {isPlaceholder ? "Loading..." : name}
           </p>
           <p className="text-center font-thin">
-              {amountSpent + "/" + budget}
+              {!isPlaceholder && amountSpent + "/" + budget}
           </p>
         </div>
         <h2 className="text-3xl font-thin text-center">

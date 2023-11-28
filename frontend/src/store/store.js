@@ -24,24 +24,24 @@ export const useStore = create(
       setUser: (newUser) => set({ user: newUser }),
 
       // fetchAndSet functions
-      fetchAndSetTransactions: (index, length) => {
+      fetchAndSetTransactions: (index, length, useCache = false) => {
         const { user, transactions } = get();
-        fetchAndSetTransactions(set)(index, length, user.accessToken, transactions);
+        fetchAndSetTransactions(set)(index, length, user.accessToken, transactions, useCache);
       },
-      fetchAndSetCategories: () => {
+      fetchAndSetCategories: (useCache = false) => {
         const { user, categories } = get();
-        fetchAndSetCategories(set, user.accessToken, categories)();
+        fetchAndSetCategories(set, user.accessToken, categories, useCache)();
       },
-      fetchAndSetRecurringTransactions: () => {
+      fetchAndSetRecurringTransactions: (useCache = false) => {
         const { user, recurringTransactions } = get();
-        fetchAndSetRecurringTransactions(set, user.accessToken, recurringTransactions)();
+        fetchAndSetRecurringTransactions(set, user.accessToken, recurringTransactions, useCache)();
       },
-      fetchAndSetSpendingHistory: () => {
+      fetchAndSetSpendingHistory: (useCache = false) => {
         const { user, spendingHistory } = get();
-        fetchAndSetSpendingHistory(set, user.accessToken, spendingHistory)();
+        fetchAndSetSpendingHistory(set, user.accessToken, spendingHistory, useCache)();
       },
 
-      // Set functions 
+      // Set functions
       setSetupMonthlyBudget: setSetupMonthlyBudget(set),
       setSetupCategories: setSetupCategories(set),
       setSetupErrorMessage: setSetupErrorMessage(set),

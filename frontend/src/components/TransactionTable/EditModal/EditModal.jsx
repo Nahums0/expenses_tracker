@@ -5,7 +5,7 @@ import ModalField from "./ModalField";
 import ModalButtons from "./ModalButtons";
 import { useFetchCategories, getEditableTransaction, prepareTransationsDataForPost } from "./helper";
 
-function EditModal({ transaction, onClose, onSave }) {
+function EditModal({ transaction, onClose, onUpdate, onDelete }) {
   const { categories, fetchAndSetCategories } = useStore();
   const [editing, setEditing] = useState(false);
   const [errorMessage, setErrorMessage] = useState(null);
@@ -19,13 +19,19 @@ function EditModal({ transaction, onClose, onSave }) {
 
   const toggleEditing = () => {
     if (editing) {
-      onSave(
+      onUpdate(
         prepareTransationsDataForPost(transaction.id, editableTransaction, categories),
         setEditing,
         setErrorMessage
       );
     } else {
       setEditing(!editing);
+    }
+  };
+
+  const deleteHandler = () => {
+    if(confirm("Are you sure you want to delete this transaction?")){
+      onDelete(transaction.id ,setErrorMessage);
     }
   };
 
@@ -47,8 +53,16 @@ function EditModal({ transaction, onClose, onSave }) {
             />
           ))}
         </div>
+        <div
+          onClick={deleteHandler}
+          className="select-none text-red-500 text-center p-3 pt-1 pb-1 rounded-sm hover:opacity-80 cursor-pointer hover:scale-105 transition-transform"
+        >
+          Delete
+        </div>
       </div>
-      {errorMessage && <div className="error-message text-red-500">Internal server error: {errorMessage}</div>}
+      {errorMessage && (
+        <div className="error-message text-red-500">Internal server error: {errorMessage.server.errors}</div>
+      )}
     </Modal>
   );
 }

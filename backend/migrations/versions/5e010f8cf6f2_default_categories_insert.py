@@ -22,21 +22,21 @@ depends_on: Union[str, Sequence[str], None] = None
 
 default_categories = [
     {"id": -1, "categoryName": "Unparsed"},
-    {"id": 0, "categoryName": "General"},
-    {"id": 1, "categoryName": "Bills"},
-    {"id": 2, "categoryName": "Rent"},
-    {"id": 3, "categoryName": "Transportation"},
-    {"id": 4, "categoryName": "Groceries"},
-    {"id": 5, "categoryName": "Leisure"},
-    {"id": 6, "categoryName": "Health"},
-    {"id": 7, "categoryName": "Debt Repayment"},
-    {"id": 8, "categoryName": "Education"},
-    {"id": 9, "categoryName": "Personal Care"},
-    {"id": 10, "categoryName": "Home Maintenance"},
-    {"id": 11, "categoryName": "Shopping"},
-    {"id": 12, "categoryName": "Gas"},
-    {"id": 13, "categoryName": "Entertainment & Media"},
-    {"id": 14, "categoryName": "Dining"},
+    {"categoryName": "General"},
+    {"categoryName": "Bills"},
+    {"categoryName": "Rent"},
+    {"categoryName": "Transportation"},
+    {"categoryName": "Groceries"},
+    {"categoryName": "Leisure"},
+    {"categoryName": "Health"},
+    {"categoryName": "Debt Repayment"},
+    {"categoryName": "Education"},
+    {"categoryName": "Personal Care"},
+    {"categoryName": "Home Maintenance"},
+    {"categoryName": "Shopping"},
+    {"categoryName": "Gas"},
+    {"categoryName": "Entertainment & Media"},
+    {"categoryName": "Dining"},
 ]
 
 
@@ -48,7 +48,7 @@ def upgrade() -> None:
         # Check if category already exists (adjust according to your schema)
         exists = session.query(
             sa.exists().where(
-                UserCategory.id == category["id"],
+                UserCategory.id == category.get("id", None),
             ),
         ).scalar()
 
@@ -56,8 +56,9 @@ def upgrade() -> None:
             # Insert new category (adjust according to your schema)
             new_category = UserCategory(
                 categoryName=category["categoryName"],
-                id=category["id"],
             )
+            if category.get("id"):
+                new_category.id = category["id"]
             session.add(new_category)
 
     session.commit()

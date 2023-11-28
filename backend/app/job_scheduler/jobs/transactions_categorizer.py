@@ -6,19 +6,19 @@ from app.merchant_aggregator.merchant_aggregator import categorize_for_all_users
 APP_NAME = "Transactions Categorizer"
 
 
-def categorize_all_transactions(scheduler):
+def categorize_all_transactions(scheduler, users_list=None):
     """Categorizes all transactions that have not been categorized yet."""
 
-    log(APP_NAME, "INFO", "Transactions Categorizer started")
+    log_message = "Transactions Categorizer started"
+    if isinstance(users_list, list):
+        log_message += f", perfoming a focused scan for {len(users_list)}"
+    else:
+        log_message += f", perfoming a scan for all users"
+    log(APP_NAME, "INFO", log_message)
+
     try:
         with scheduler.flask_app.app_context():
-            # Query the database
-            unparsed_transactions = Transaction.query.filter(
-                or_(
-                    Transaction.categoryId == -1,
-                    Transaction.categoryId == None,
-                )
-            ).all()
+            unparsed_transactions = fetch_transaction(users_list)
             unparsed_transactions_dict = {}
 
             if len(unparsed_transactions) == 0:
@@ -54,3 +54,18 @@ def categorize_all_transactions(scheduler):
     except Exception as e:
         log(APP_NAME, "ERROR", f"An error occured while categorizing transactions: {e}")
         raise e
+
+
+def fetch_transaction(users_list):
+    query = Transaction.query.filter(
+        or_(
+            Transaction.categoryId == -1,
+            Transaction.categoryId == None,
+        )
+    )
+
+    if isinstance(users_list, list):
+        query = query.filter(Transaction.userEmail.in_(users_list))
+
+    unparsed_transactions = query.all()
+    return unparsed_transactions

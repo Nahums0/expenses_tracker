@@ -1,6 +1,8 @@
 from datetime import datetime
 from flask_jwt_extended import create_access_token
 from app.database.models import User
+from app.job_scheduler.jobs_config import scheduled_jobs_dict
+from app.job_scheduler.app import SchedulerInstance
 
 
 def get_user_object(email):
@@ -63,14 +65,15 @@ def validate_recurring_transaction(transaction):
 
     return errors
 
+
 def validate_transaction(data):
     """Validate transaction object contains the proper fields"""
-    
+
     required_fields = ["transactionId", "categoryId", "transactionAmount", "paymentDate", "purchaseDate", "merchantData"]
     missing_fields = [field for field in required_fields if field not in data]
     if missing_fields:
         return False, f"Missing fields: {', '.join(missing_fields)}"
-    
+
     return True, ""
 
 
@@ -130,3 +133,19 @@ def distribute_transactions_across_chunks(transactions, start_index, total_count
         chunks[current_chunk_index][transaction_index_within_chunk] = transactions[i - start_index]
 
     return chunks
+
+
+def trigger_user_initial_setup_jobs(user_email):
+    chained_jobs = [
+        scheduled_jobs_dict["transactions_scanner"],
+        scheduled_jobs_dict["transactions_categorizer"],
+        scheduled_jobs_dict["monthly_spending_calculator"],
+    ]
+
+    custom_args = {
+        "transactions_scanner": {"args": {"users_list": [user_email]}},
+        "transactions_categorizer": {"args": {"users_list": [user_email]}},
+        "monthly_spending_calculator": {"args": {"users_list": [user_email], "deep_scan": True}},
+    }
+    scheduler = SchedulerInstance.get_instance()
+    scheduler.trigger_jobs(chained_jobs, custom_args)
