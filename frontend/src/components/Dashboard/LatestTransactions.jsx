@@ -2,15 +2,30 @@ import Loading from "@/components/Loading/Loading";
 import Card from "./Card";
 import useStore from "@/store/store";
 import React, { useEffect } from "react";
+import { getCurrencySymbol } from "@/utils/helpers";
 
 const LatestTransactions = () => {
-  const { transactions, fetchAndSetTransactions } = useStore();
+  const { transactions, user, fetchAndSetTransactions } = useStore();
 
   const formatDate = (date) => {
     if (!date) return "";
     return typeof date === "string" ? date.split("T")[0] : date.toISOString().split("T")[0];
   };
 
+  const getAmountBadgeColor = (amount) => {
+    return amount < 0 ? "text-green-600 bg-green-200" : "text-red-400 bg-red-100";
+  };
+
+  const getTransactionAmount = (transaction) => {
+    let currency = user.currency
+    let amount = Math.abs(transaction.transactionAmount).toFixed(2);
+    if (transaction.isPending){
+      currency = getCurrencySymbol(transaction.originalCurrency)
+      amount = transaction.originalAmount
+    }
+    return `${amount}${currency}`;
+  };
+  
   useEffect(() => {
     fetchAndSetTransactions();
   }, []);
@@ -42,11 +57,11 @@ const LatestTransactions = () => {
                 </p>
                 <p className="text-gray-400 font-thin col-span-1 truncate">{formatDate(t.purchaseDate)}</p>
                 <p
-                  className={`font-light text-base col-span-1  ${
-                    t.transactionAmount < 0 ? "text-green-600 bg-green-200" : "text-red-400 bg-red-100"
-                  } rounded-md px-2 py-1 text-center w-20 ml-auto mr-auto font-thin`}
+                  className={`text-base col-span-1 rounded-md px-2 py-1 text-center w-20 ml-auto mr-auto font-thin ${getAmountBadgeColor(
+                    t.transactionAmount
+                  )}`}
                 >
-                  {Math.abs(t.transactionAmount).toFixed(2)}₪
+                  {getTransactionAmount(t)}
                 </p>
               </div>
             );

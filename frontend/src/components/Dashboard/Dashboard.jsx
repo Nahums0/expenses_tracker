@@ -14,7 +14,7 @@ export default function Dashboard() {
     async function fetchData() {
       setIsLoading(true);
       try {
-        await Promise.all([fetchAndSetCategories(useCache=true), fetchAndSetSpendingHistory()]);
+        await Promise.all([fetchAndSetCategories(true), fetchAndSetSpendingHistory()]);
       } catch (error) {
         console.error("Failed to fetch data", error);
       }
