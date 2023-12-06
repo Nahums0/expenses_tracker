@@ -37,17 +37,17 @@ export default function Dashboard() {
     return Math.round(monthDay * dailyBudget - monthlySpending);
   };
 
-  const _calculateDailyAverage = () => {
+  const _calculateWeeklyAverage = () => {
     const currentDate = new Date();
     const monthDay = currentDate.getDate();
-    return Math.round(monthlySpending / monthDay);
+    return Math.round(monthlySpending / monthDay) * 7;
   };
 
-  const _calculateTargetDailyAverage = () =>{
+  const _calculateTargetWeeklyAverage = () =>{
     const totalDaysInMonth = _getTotalDaysInMonth(new Date());
     const targetDailyBudget = monthlyBudget / totalDaysInMonth;
 
-    return Math.round(targetDailyBudget);
+    return Math.round(targetDailyBudget) * 7;
   }
 
   const currency = user.currency;
@@ -71,8 +71,8 @@ export default function Dashboard() {
           body={`${_calculateDailySurplus(monthlyBudget, monthlySpending)}₪`}
         />
         <MonthlyMetricsCard
-          title={"Daily Average"}
-          body={`${_calculateDailyAverage()}₪ / ${_calculateTargetDailyAverage()}₪`}
+          title={"Weekly Average"}
+          body={`${_calculateWeeklyAverage()}₪ / ${_calculateTargetWeeklyAverage()}₪`}
           className={"hidden lg:flex"}
         />
       </div>

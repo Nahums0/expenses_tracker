@@ -52,12 +52,15 @@ def aggregate_monthly_spending(scheduler, users_list=None, deep_scan=False):
                             db.session.add(monthly_spending_object)
                         else:
                             monthly_spending_object.spendingAmount = spending_amount
+                user.initialSetupDone = True
+
             db.session.commit()
             log(APP_NAME, "INFO", f"{APP_NAME} finished")
         except Exception as e:
             db.session.rollback()
             log(APP_NAME, "ERROR", f"Error in monthly spending aggregation: {e}")
             raise e
+
 
 def get_transactions_from_db(user, full_history):
     query = Transaction.query.filter(Transaction.userEmail == user.email, Transaction.isRecurring == False)

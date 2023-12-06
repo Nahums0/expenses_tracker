@@ -24,9 +24,9 @@ export const useStore = create(
       setUser: (newUser) => set({ user: newUser }),
 
       // fetchAndSet functions
-      fetchAndSetTransactions: (index, length, useCache = false) => {
+      fetchAndSetTransactions: (index, length, filters, sortConfig, useCache = false) => {
         const { user, transactions } = get();
-        fetchAndSetTransactions(set)(index, length, user.accessToken, transactions, useCache);
+        fetchAndSetTransactions(set)(index, length, filters, sortConfig, user.accessToken, transactions, useCache);
       },
       fetchAndSetCategories: (useCache = false) => {
         const { user, categories } = get();

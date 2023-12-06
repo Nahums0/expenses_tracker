@@ -1,5 +1,4 @@
 from flask import Flask
-from app.database.helper import db_seed
 import app.database.models as db_models
 from app.logger import log
 from alembic.config import Config
@@ -15,7 +14,6 @@ def initialize_database(flask_app: Flask):
         with flask_app.app_context():
             alembic_cfg = Config("alembic.ini")
             command.upgrade(alembic_cfg, "head")
-            db_seed()
         log(APP_NAME, "INFO", "Database initialized successfully.")
     except Exception as e:
         log(APP_NAME, "ERROR", f"Database initialization failed: {e}")

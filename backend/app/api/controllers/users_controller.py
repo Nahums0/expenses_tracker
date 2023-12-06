@@ -11,6 +11,7 @@ from app.database.models import (
 )
 from app.api.helpers import get_user_object, trigger_user_initial_setup_jobs
 from app.credit_card_adapters.max_fetcher import login_user
+from lib.encryption.aes_encryptor import encrypt
 from config.app import INVITE_KEY
 from app.helper import RegistrationForm, create_response, hash_password, verify_password
 from app.logger import log
@@ -183,7 +184,7 @@ def setup_user():
             new_credentials = AppUserCredentials(
                 userEmail=email,
                 username=cc_credentials["username"],
-                password=cc_credentials["password"],
+                password=encrypt(cc_credentials["password"]),
                 identityDocumentNumber=cc_credentials["id"],
             )
             db.session.add(new_credentials)
@@ -195,7 +196,6 @@ def setup_user():
                 UserCategory(owner=email, monthlyBudget=category["budget"], categoryName=category["categoryName"])
             )
 
-        user.initialSetupDone = True
         db.session.add_all(user_categories)
         db.session.commit()
 
@@ -225,7 +225,7 @@ def test_credit_card_credentials():
         identity_document_number = data["id"]
 
         # Attempt to log in with the provided credentials
-        login_result = login_user({"username": username, "password": password, "id": identity_document_number})
+        login_result = login_user({"username": username, "password": password, "id": identity_document_number}, False)
         if login_result:
             log(APP_NAME, "INFO", f"Credit card credentials validated for email: {email}")
             return create_response("Credentials are valid", 200)

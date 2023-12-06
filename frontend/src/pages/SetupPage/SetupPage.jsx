@@ -28,12 +28,8 @@ export default function SetupPage() {
 
   const submitHandler = async () => {
     var parsedBudget = parseInt(monthlyBudget);
-    var filteredCategories = categories
-      .filter((c) => c.budget > 0)
-      .map((c) => {
-        c.budget *= parsedBudget / 100;
-        return c;
-      });
+    var filteredCategories = categories.filter((c) => c.budget > 0);
+
     var formatttedFullname = fullName
       .split(" ")
       .map((s) => s[0].toUpperCase() + s.substr(1))

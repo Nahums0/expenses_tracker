@@ -1,6 +1,5 @@
 from flask_sqlalchemy import SQLAlchemy
 from sqlalchemy import (
-    JSON,
     Column,
     DateTime,
     Float,
@@ -11,6 +10,7 @@ from sqlalchemy import (
     Date,
     ForeignKey,
 )
+from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import relationship
 import enum
 
@@ -42,7 +42,7 @@ class AppUserCredentials(db.Model):
 
     userEmail = Column(String(255), ForeignKey("user.email"), primary_key=True)
     username = Column(String(255))
-    password = Column(String(255))
+    password = Column(LargeBinary)
     identityDocumentNumber = Column(String(255))
 
     user = relationship("User", back_populates="appUserCredentials")
@@ -97,16 +97,16 @@ class Transaction(db.Model):
     __tablename__ = "transaction"
 
     id = Column(String, primary_key=True, nullable=False)
-    uid = Column(String, nullable=True)
     arn = Column(String(255), nullable=True)
     userEmail = Column(String(255), ForeignKey("user.email"))
     categoryId = Column(Integer, ForeignKey("userCategory.id"), nullable=False, default=-1)
+    authorizationNumber = Column(String, nullable=True)
 
     transactionAmount = Column(Float)
     purchaseDate = Column(DateTime)
     paymentDate = Column(DateTime)
     shortCardNumber = Column(String(4))
-    merchantData = Column(JSON)
+    merchantData = Column(JSONB)
     originalCurrency = Column(String(3))
     originalAmount = Column(Float)
     isRecurring = Column(Boolean, default=False)
@@ -124,7 +124,7 @@ class Transaction(db.Model):
         data = {
             "id": self.id,
             "arn": self.arn,
-            "uid": self.uid,
+            "authorizationNumber": self.authorizationNumber,
             "userEmail": self.userEmail,
             "categoryId": self.categoryId,
             "transactionAmount": self.transactionAmount,

@@ -8,8 +8,7 @@ def run_jobs(scheduler, job_list):
     Runs a list of jobs. Each job is expected to have a 'func' attribute pointing to the function to run,
     and an 'args' attribute containing the arguments for the function.
     """
-    count = 1
-    for job in job_list:
+    for count, job in enumerate(job_list, 1):
         try:
             log(APP_NAME, "DEBUG", f"Triggering job {count}/{len(job_list)}")
 
@@ -21,5 +20,3 @@ def run_jobs(scheduler, job_list):
         except Exception as e:
             log(APP_NAME, "ERROR", f"Job {job.get('id', 'Unknown')} ({count}/{len(job_list)}) failed, error: {e}")
             break
-
-        count += 1

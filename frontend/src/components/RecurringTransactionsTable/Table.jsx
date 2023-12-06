@@ -15,7 +15,7 @@ function RecurringTransactionsTable() {
   async function fetchTransactions() {
     setIsLoading(true);
     try {
-      await Promise.all([fetchAndSetRecurringTransactions(), fetchAndSetCategories(useCache=true)]);
+      await Promise.all([fetchAndSetRecurringTransactions(), fetchAndSetCategories(true)]);
     } catch (error) {
       console.error("Failed to fetch transactions", error);
     }

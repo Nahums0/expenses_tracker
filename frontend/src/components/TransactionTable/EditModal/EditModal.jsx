@@ -6,7 +6,7 @@ import ModalButtons from "./ModalButtons";
 import { useFetchCategories, getEditableTransaction, prepareTransationsDataForPost } from "./helper";
 
 function EditModal({ transaction, onClose, onUpdate, onDelete }) {
-  const { categories, fetchAndSetCategories } = useStore();
+  const { categories, user, fetchAndSetCategories } = useStore();
   const [editing, setEditing] = useState(false);
   const [errorMessage, setErrorMessage] = useState(null);
   const [editableTransaction, setEditableTransaction] = useState(getEditableTransaction(transaction, categories));
@@ -22,7 +22,8 @@ function EditModal({ transaction, onClose, onUpdate, onDelete }) {
       onUpdate(
         prepareTransationsDataForPost(transaction.id, editableTransaction, categories),
         setEditing,
-        setErrorMessage
+        setErrorMessage,
+        user
       );
     } else {
       setEditing(!editing);
@@ -30,8 +31,8 @@ function EditModal({ transaction, onClose, onUpdate, onDelete }) {
   };
 
   const deleteHandler = () => {
-    if(confirm("Are you sure you want to delete this transaction?")){
-      onDelete(transaction.id ,setErrorMessage);
+    if (confirm("Are you sure you want to delete this transaction?")) {
+      onDelete(transaction.id, setErrorMessage, user);
     }
   };
 

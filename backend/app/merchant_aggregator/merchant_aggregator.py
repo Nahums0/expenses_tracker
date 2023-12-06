@@ -1,9 +1,11 @@
+import os
 from datetime import datetime
 from multiprocessing import Process, Queue
-from app.database.models import UserParsedCategory, db
+from app.database.models import Transaction, UserParsedCategory, db
 from app.helper import get_prompt_template, query_chatgpt
 from app.logger import log
 from app.merchant_aggregator.utils import (
+    _serialize_transactions,
     _split_into_chunks,
     _extract_merchant_from_transaction,
     _has_timed_out,
@@ -11,7 +13,6 @@ from app.merchant_aggregator.utils import (
     _retrieve_cached_categories,
     _get_user_categories_dict,
 )
-import os
 
 APP_NAME = "Merchant Aggregator"
 
@@ -23,10 +24,7 @@ def _categorize_chunk(chunk, user_categories_dict, user_email, queue):
 
     categories_string = ",".join(user_categories_dict.keys())
     transactions_string = "\n".join(
-        [
-            f'"{_extract_merchant_from_transaction(transaction.merchantData["name"])}"'
-            for transaction in chunk
-        ]
+        [f'"{_extract_merchant_from_transaction(transaction["merchantData"]["name"])}"' for transaction in chunk]
     )
     prompt = get_prompt_template(categories_string, transactions_string)
     chatgpt_response = query_chatgpt(prompt)
@@ -38,7 +36,11 @@ def _categorize_chunk(chunk, user_categories_dict, user_email, queue):
         category = generated_categories[index]
 
         if index >= len(chunk):
-            log(APP_NAME, "WARNING", f"Generated categories count is larger than the chunk size -> {len(generated_categories)} / {len(chunk)} ")
+            log(
+                APP_NAME,
+                "WARNING",
+                f"Generated categories count is larger than the chunk size -> {len(generated_categories)} / {len(chunk)}",
+            )
             break
 
         if "Category for" in category:
@@ -49,16 +51,22 @@ def _categorize_chunk(chunk, user_categories_dict, user_email, queue):
                 custom_category = user_categories_dict[category_name]["is_custom"]
 
                 # Update transaction category
-                chunk[index].categoryId = category_id
+                chunk[index]["categoryId"] = category_id
 
                 # Update cached categories
-                parsed_categories.append(UserParsedCategory(
-                    chargingBusiness=chunk[index].merchantData["name"],
-                    targetCategoryId=category_id,
-                    userEmail=user_email if custom_category else None
-                ))
+                parsed_categories.append(
+                    UserParsedCategory(
+                        chargingBusiness=chunk[index]["merchantData"]["name"],
+                        targetCategoryId=category_id,
+                        userEmail=user_email if custom_category else None,
+                    )
+                )
             else:
-                log(APP_NAME, "WARNING", f"Generated unrecognized category: '{category_name}' for transaction: {chunk[index].merchantData['name']}")
+                log(
+                    APP_NAME,
+                    "WARNING",
+                    f"Generated unrecognized category: '{category_name}' for transaction: {chunk[index]['merchantData']['name']}",
+                )
     queue.put((chunk, parsed_categories))
 
 
@@ -109,11 +117,13 @@ def _process_chunk(chunks, user_categories, processing_data):
 def _process_data_in_chunks(transactions, user_categories, processing_data):
     """Splits transactions into chunks and processes them in parallel batches"""
 
+    if len(transactions) == 0:
+        return {"transactions": [], "user_parsed_categories": []}
+
     chunk_size = processing_data["chunk_size"]
     parallel_count = processing_data["parallel_count"]
 
     chunks = _split_into_chunks(transactions, chunk_size)
-    results = {"transactions":[], "user_parsed_categories":[]}
     current_chunk_index = 0
 
     while current_chunk_index < len(chunks):
@@ -125,6 +135,7 @@ def _process_data_in_chunks(transactions, user_categories, processing_data):
                 current_chunk_index += 1
 
         batch_results = _process_chunk(batch, user_categories, processing_data)
+        results = {"transactions": [], "user_parsed_categories": []}
 
         for chunk_result in batch_results:
             if chunk_result is None:
@@ -132,13 +143,10 @@ def _process_data_in_chunks(transactions, user_categories, processing_data):
             user_parsed_transactions = chunk_result[0]
             user_parsed_categories = chunk_result[1]
 
-            for t in user_parsed_transactions:
-                results["transactions"].append(t)
+            results["transactions"].extend(user_parsed_transactions)
+            results["user_parsed_categories"].extend(user_parsed_categories)
 
-            for c in user_parsed_categories:
-                results["user_parsed_categories"].append(c)
-
-    return results
+            yield results
 
 
 def categorize_for_all_users(user_transactions_dict):
@@ -158,56 +166,71 @@ def categorize_for_all_users(user_transactions_dict):
 
     user_parsed_categories = []
     parsed_transactions = []
+    processed_transactions = []
 
     # Iterate over each user and their transactions
     for email, transactions in user_transactions_dict.items():
-        if transactions:
-            log(APP_NAME, "INFO", f"Categorizing transactions for user {email}, total transactions {len(transactions)}")
+        if not transactions:
+            log(APP_NAME, "INFO", f"No transactions to categorize for user {email}")
+            continue
 
-            # Retrieve user-specific categories and cached categories
-            user_categories = _get_user_categories_dict(email)
-            cached_merchants_mapping = _retrieve_cached_categories(email)
-            cached_transactions = []
+        log(APP_NAME, "INFO", f"Categorizing transactions for user {email}, total transactions {len(transactions)}")
 
-            # Iterate over each transaction for the user
-            for t in transactions:
+        # Retrieve user-specific categories and cached categories
+        user_categories = _get_user_categories_dict(email)
+        cached_merchants_mapping = _retrieve_cached_categories(email)
+        cached_transactions = []
+        transactions_to_process = []
 
-                # Extract the merchant name from the transaction data
-                merchant_name = _extract_merchant_from_transaction(t.merchantData["name"])
-                cached_value = cached_merchants_mapping.get(merchant_name, None)
+        # Iterate over each transaction for the user
+        for t in _serialize_transactions(transactions):
+            # Extract the merchant name from the transaction data
+            merchant_name = _extract_merchant_from_transaction(t["merchantData"]["name"])
+            cached_value = cached_merchants_mapping.get(merchant_name, None)
 
-                # If there's a cached category for the merchant, use it and remove the transaction from processing
-                if cached_value is not None:
-                    t.categoryId = cached_value
-                    transactions.remove(t)
-                    cached_transactions.append(t)
+            # If there's a cached category for the merchant, use it and remove the transaction from processing
+            if cached_value is not None:
+                t["categoryId"] = cached_value
+                cached_transactions.append(t)
+            else:
+                transactions_to_process.append(t)
 
-            log(APP_NAME, "DEBUG", f"Found {len(cached_transactions)} transactions with cached merchants")
+        log(APP_NAME, "DEBUG", f"Found {len(cached_transactions)} transactions with cached merchants")
 
-            # Set up processing data for chunk processing
-            processing_data = {
-                "timeout": 30,
-                "chunk_size": 8,
-                "parallel_count": 20,
-                "user_email": email
-            }
+        # Set up processing data for chunk processing
+        processing_data = {"timeout": 30, "chunk_size": 8, "parallel_count": 20, "user_email": email}
 
-            log(APP_NAME, "DEBUG", f"Processing data in chunks. Unchached transactions: {len(transactions)}, processing_data: {processing_data}")
+        log(
+            APP_NAME,
+            "DEBUG",
+            f"Processing data in chunks. Unchached transactions: {len(transactions_to_process)}, processing_data: {processing_data}",
+        )
+        processed_transactions.extend(cached_transactions)
 
-            # Process uncached transactions in chunks
-            results = _process_data_in_chunks(transactions, user_categories, processing_data)
-
-            # Combine processed transactions with cached ones
+        for results in _process_data_in_chunks(transactions_to_process, user_categories, processing_data):
             processed_transactions = results["transactions"]
-            processed_transactions.extend(cached_transactions)
             user_parsed_categories.extend(results["user_parsed_categories"])
 
-            # Prepare the final list of parsed transactions
-            parsed_transactions.extend([{"id": t.id, "categoryId": t.categoryId} for t in processed_transactions if t is not None])
+            # Prepare transactions for commit
+            parsed_transactions_batch = [
+                {"id": t["id"], "categoryId": t["categoryId"]} for t in processed_transactions if t is not None
+            ]
+            parsed_transactions.extend(parsed_transactions_batch)
 
-            # Log the completion of categorization for a user
-            log(APP_NAME, "INFO", f"Finished categorizing transactions for user {email}, processed {len(processed_transactions)} new transactions")
-        else:
-            log(APP_NAME, "INFO", f"No transactions to categorize for user {email}")
+            # Commit batch to database
+            db.session.bulk_update_mappings(Transaction, parsed_transactions_batch)
+            db.session.add_all(user_parsed_categories)
+            db.session.commit()
 
+            # Clear lists for next batch
+            parsed_transactions_batch.clear()
+            user_parsed_categories.clear()
+            processed_transactions.clear()
+
+        # Log the completion of categorization for a user
+        log(
+            APP_NAME,
+            "INFO",
+            f"Finished categorizing transactions for user {email}, processed {len(processed_transactions)} new transactions",
+        )
     return (parsed_transactions, user_parsed_categories)

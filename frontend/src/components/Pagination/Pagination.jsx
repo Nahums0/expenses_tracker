@@ -1,4 +1,4 @@
-const PagePicker = ({ totalPages, currentPage, setCurrentPage, setPageSize, className }) => {
+const PagePicker = ({ totalPages, currentPage, setCurrentPage, setPageSize, className, pageSize }) => {
   const lookoutCount = 3;
 
   // Calculate the start and end pages for pagination
@@ -90,7 +90,7 @@ const PagePicker = ({ totalPages, currentPage, setCurrentPage, setPageSize, clas
         <label htmlFor="page-size" className="text-lg mb-1">
           Items per page:
         </label>
-        <select id="page-size" className="text-lg p-2 border rounded" onChange={setPageSize}>
+        <select id="page-size" className="text-lg p-2 border rounded" onChange={setPageSize} value={pageSize}>
           {[10, 20, 30, 50, 100].map((size) => (
             <option key={size} value={size}>
               {size}

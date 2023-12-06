@@ -3,7 +3,7 @@ import CategoryCard from "@/components/CategoryCard/CategoryCard";
 
 export default function TopCategories({ isLoading, categories }) {
   const renderCategoryCards = () => {
-    if (isLoading || !categories || categories.reduce((total, c)=> total + c.monthlySpending, 0) == 0) {
+    if (isLoading || !categories) {
       return [0, 1, 2].map((i) => (
         <CategoryCard key={`placeholder-${i}`} isPlaceholder={true} className={i === 2 ? "hidden lg:block" : ""} />
       ));
@@ -17,6 +17,7 @@ export default function TopCategories({ isLoading, categories }) {
           name={category.categoryName}
           amountSpent={category.monthlySpending}
           budget={category.monthlyBudget}
+          categoryId={category.id}
           className={index === 2 ? "hidden lg:block" : ""}
         />
       ));

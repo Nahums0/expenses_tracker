@@ -54,3 +54,7 @@ def _split_into_chunks(data_list, chunk_size):
     """Split the list into smaller chunks"""
 
     return [data_list[i : i + chunk_size] for i in range(0, len(data_list), chunk_size)]
+
+
+def _serialize_transactions(transactions):
+    return [t.serialize() for t in transactions]

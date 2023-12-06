@@ -42,7 +42,7 @@ const TransactionRow = ({ transaction, onEditClick }) => {
   const categorized = isCategorized(transaction);
 
   return (
-    <tr className="bg-white border-b">
+    <tr className="bg-white border-b even:bg-gray-50">
       <td className="px-6 py-4 text-gray-500 text-left truncate">{dateString}</td>
       <td className={amountClass}>{transactionAmountString}</td>
       <td className={`px-6 py-4 text-xl font-light text-left truncate ${!categorized && "text-gray-400"}`}>

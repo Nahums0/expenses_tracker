@@ -37,19 +37,7 @@ def categorize_all_transactions(scheduler, users_list=None):
                 "INFO",
                 f"Categorizing transactions for {len(unparsed_transactions_dict)} unqiue users, total transactions: {len(unparsed_transactions)}",
             )
-            updated_transactions, user_parsed_categories = categorize_for_all_users(unparsed_transactions_dict)
-
-            # Update db with new category values
-            db.session.bulk_update_mappings(Transaction, updated_transactions)
-
-            # Filter duplicate values
-            user_parsed_categories = {
-                user_parsed_category.chargingBusiness: user_parsed_category
-                for user_parsed_category in user_parsed_categories
-            }.values()
-            db.session.add_all(user_parsed_categories)
-
-            db.session.commit()
+            categorize_for_all_users(unparsed_transactions_dict)
             log(APP_NAME, "INFO", "Transactions Categorizer finished")
     except Exception as e:
         log(APP_NAME, "ERROR", f"An error occured while categorizing transactions: {e}")
@@ -67,5 +55,5 @@ def fetch_transaction(users_list):
     if isinstance(users_list, list):
         query = query.filter(Transaction.userEmail.in_(users_list))
 
-    unparsed_transactions = query.all()
+    unparsed_transactions = query.order_by(Transaction.purchaseDate.desc()).all()
     return unparsed_transactions

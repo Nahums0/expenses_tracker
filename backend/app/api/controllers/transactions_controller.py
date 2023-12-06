@@ -6,6 +6,8 @@ from app.database.models import RecurringTransactions, Transaction, UserCategory
 from app.helper import create_response
 from app.logger import log
 from app.api.helpers import (
+    apply_sorting,
+    apply_transactions_filters,
     distribute_transactions_across_chunks,
     update_recurring_transaction_fields,
     validate_recurring_transaction,
@@ -20,28 +22,39 @@ transactions_bp = Blueprint("transactions", __name__, url_prefix="/api/transacti
 
 
 # Define the route for retrieving a user's transactions
-@transactions_bp.route("/list-transactions", methods=["GET"])
+@transactions_bp.route("/list-transactions", methods=["POST"])
 @jwt_required()
 def list_transactions():
     """
     List transactions for a user, starting from a given index.
     """
     email = get_jwt_identity()
-    num_transactions = request.args.get("length", default=25, type=int)
-    start_index = request.args.get("index", default=0, type=int)
+    data = request.get_json()
+
+    num_transactions = data.get("length", 25)
+    start_index = data.get("index", 0)
+    filters = data.get("filters", {})
+    sort_config = data.get("sortConfig", None)
+
 
     if num_transactions > MAX_TRANSACTIONS_PER_REQUEST:
         return create_response("Request too large", 400)
 
     try:
-        # Count the total number of transactions owned by the user
-        total_transactions_count = Transaction.query.filter_by(userEmail=email, isRecurring=False, isDeleted=False).count()
+        # Query all non-deleted, non-recurring transactions owned by the user
+        query = Transaction.query.filter_by(userEmail=email, isRecurring=False, isDeleted=False)
 
-        # Fetch transaction belonging to the user
-        transactions_query = Transaction.query.filter_by(userEmail=email, isRecurring=False, isDeleted=False).order_by(
-            Transaction.purchaseDate.desc()
-        )
-        transactions = transactions_query.offset(start_index).limit(num_transactions).all()
+        # Apply filters to the query
+        query = apply_transactions_filters(query, filters)
+
+        # Apply sorting to the query
+        query = apply_sorting(query, sort_config)
+
+        # Count the total number of transactions after applying filters
+        total_transactions_count = query.count()
+
+        # Fetch transaction belonging to the user with pagination
+        transactions = query.offset(start_index).limit(num_transactions).all()
 
         # Serialize the transactions to send as a JSON response
         transactions_data = [transaction.serialize() for transaction in transactions]
@@ -62,7 +75,7 @@ def list_transactions():
 
         return create_response("Successfully fetched transactions", 200, response_body)
     except Exception as e:
-        log(APP_NAME, "ERROR", f"Error fetching transactions for email: {email}, error: {str(e)}")
+        log(APP_NAME, "ERROR", f"Error fetching transactions for email: {email}, error: {e}")
         return create_response("An error occurred while fetching transactions", 500)
 
 

@@ -48,6 +48,9 @@ const LatestTransactions = () => {
         <hr className="bg-gray-100 w-full mb-4" />
         <div className="grid gap-2">
           {transactions.transactions[0].slice(0, 14).map((t) => {
+            if (t == null){
+              return <></>
+            }
             const categorized = t.categoryName != null && t.categoryId != -1;
 
             return (

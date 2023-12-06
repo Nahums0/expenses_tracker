@@ -2,6 +2,7 @@ from datetime import datetime, timedelta
 import json
 import requests
 from app.database.models import Transaction
+from lib.encryption.aes_encryptor import decrypt
 from config import max_urls
 import uuid
 
@@ -74,11 +75,23 @@ def build_transactions_url(dates):
     return transactions_fetch_url.replace(" ", "")
 
 
-def login_user(user_credentials):
+def login_user(user_credentials, decrypt_password=True):
     """
     Login the user and return the cookies if successful.
     """
-    response = requests.post(LOGIN_URL, headers=HEADERS, json=user_credentials)
+    try:
+        decrypted_password = decrypt(user_credentials["password"]) if decrypt_password else user_credentials["password"]
+    except Exception as e:
+        raise Exception(f"Error decrypting password for user: {user_credentials['username']}: {e}")
+
+    # Update the credentials with the decrypted password
+    updated_user_credentials = {
+        "username": user_credentials["username"],
+        "password": decrypted_password,
+        "id": user_credentials["id"],
+    }
+
+    response = requests.post(LOGIN_URL, headers=HEADERS, json=updated_user_credentials)
     if response.status_code != 200:
         raise Exception(f"Login failed for user: {user_credentials['username']}, status_code: {response.status_code}")
 
@@ -110,7 +123,6 @@ def fetch_transactions_from_max(user_credentials: dict, dates: tuple, user_email
         t = Transaction(
             id=f"{user_email}_{transaction['arn']}",
             arn=transaction["arn"],
-            uid=transaction["uid"],
             userEmail=user_email,
             categoryId=-1,
             transactionAmount=parse_transaction_amount(transaction["actualPaymentAmount"]),
@@ -121,11 +133,13 @@ def fetch_transactions_from_max(user_credentials: dict, dates: tuple, user_email
             originalCurrency=transaction["originalCurrency"],
             originalAmount=transaction["originalAmount"],
             isRecurring=False,
+            isPending=False,
+            authorizationNumber=transaction["dealData"]["authorizationNumber"],
         )
         if transaction["arn"] is None:
             t.id = f"{user_email}_{uuid.uuid4()}_pending"
             t.isPending = True
-            
+
         user_transactions.append(t)
 
     return user_transactions

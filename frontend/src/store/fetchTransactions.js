@@ -1,4 +1,4 @@
-export default async function fetchTransactions(userToken, prevState, index=0, length=75) {
+export default async function fetchTransactions(userToken, prevState, index = 0, length = 75, filters, sortConfig) {
   let transactions = {
     transactions: null,
     totalTransactionsCount: 0,
@@ -6,12 +6,13 @@ export default async function fetchTransactions(userToken, prevState, index=0, l
   };
 
   try {
-    const response = await fetch(`/api/transactions/list-transactions?index=${index}&length=${length}`, {
-      method: "GET",
+    const response = await fetch(`/api/transactions/list-transactions`, {
+      method: "POST",
       headers: {
         "Content-Type": "application/json",
         Authorization: `Bearer ${userToken}`,
       },
+      body: JSON.stringify({ index, length, filters, sortConfig }),
     });
 
     if (!response.ok) {
@@ -40,10 +41,10 @@ function mergeTransactions(prevState, fetchedData) {
 
     if (shouldOverride) {
       return {
-          chunkSize,
-          totalTransactionsCount,
-          transactions: fetchedTransactions,
-          fetchTimestamp: currentTimestamp,
+        chunkSize,
+        totalTransactionsCount,
+        transactions: fetchedTransactions,
+        fetchTimestamp: currentTimestamp,
       };
     }
 
@@ -58,19 +59,19 @@ function mergeTransactions(prevState, fetchedData) {
     );
 
     return {
-        chunkSize,
-        totalTransactionsCount,
-        transactions: updatedTransactions,
-        fetchTimestamp: lastFetchTimestamp,
+      chunkSize,
+      totalTransactionsCount,
+      transactions: updatedTransactions,
+      fetchTimestamp: lastFetchTimestamp,
     };
   } catch (error) {
     console.error("Error merging transactions:", error);
     // On error, reset transactions with fetched data
     return {
-        chunkSize,
-        totalTransactionsCount,
-        transactions: transactions,
-        fetchTimestamp: currentTimestamp,
+      chunkSize,
+      totalTransactionsCount,
+      transactions: transactions,
+      fetchTimestamp: currentTimestamp,
     };
   }
 }

@@ -35,4 +35,5 @@ frontend/yarn-error.log*
 frontend/pnpm-debug.log*
 frontend/lerna-debug.log*
 
-.DS_Store
+# Other
+transaction_jsons.txt

@@ -43,14 +43,29 @@ const _shouldRefetch = (lastFetch, thresholdSeconds) => {
 };
 
 // Fetch functions
-export const fetchAndSetTransactions = (set) => (index, length, accessToken, currentTransactions, useCache) =>
-  fetchAndSetData(fetchTransactions, set, "transactions", accessToken, currentTransactions, useCache)(index, length);
+export const fetchAndSetTransactions =
+  (set) => (index, length, filters, sortConfig, accessToken, currentTransactions, useCache) =>
+    fetchAndSetData(
+      fetchTransactions,
+      set,
+      "transactions",
+      accessToken,
+      currentTransactions,
+      useCache
+    )(index, length, filters, sortConfig);
 
 export const fetchAndSetCategories = (set, accessToken, currentCategories, useCache) =>
   fetchAndSetData(fetchCategories, set, "categories", accessToken, currentCategories, useCache);
 
 export const fetchAndSetRecurringTransactions = (set, accessToken, recurringTransactions, useCache) =>
-  fetchAndSetData(fetchRecurringTransactions, set, "recurringTransactions", accessToken, recurringTransactions, useCache);
+  fetchAndSetData(
+    fetchRecurringTransactions,
+    set,
+    "recurringTransactions",
+    accessToken,
+    recurringTransactions,
+    useCache
+  );
 
 export const fetchAndSetSpendingHistory = (set, accessToken, currentSpendingHistory, useCache) =>
   fetchAndSetData(fetchSpendingHistory, set, "spendingHistory", accessToken, currentSpendingHistory, useCache);
